@@ -22,7 +22,7 @@ const faqs = [
   { q: 'What happens if I miss a medicine reminder?', a: 'The system marks it as missed, sends follow-up reminders, and notifies your family member. A missed reminder is not treated as a medical emergency.' },
   { q: 'How is my data protected?', a: 'All data is encrypted in transit. Family members only see data you consent to share. Admins access data only for support with audit logging.' },
   { q: 'Does it work without internet?', a: 'Parents can use WhatsApp (which works on basic phones). The dashboard requires internet. Emergency contacts can also be called directly.' },
-  { q: 'Is WhatsApp required?', a: 'Not required, but recommended. Without WhatsApp, parents can still use the web interface. WhatsApp simply makes it easier for elderly users.' },
+  { q: 'Do parents need the website?', a: 'No. Parents interact only through WhatsApp — no app, no website, no password to remember. The web dashboard is for children, service providers and admins.' },
 ];
 
 export default function LandingPage() {

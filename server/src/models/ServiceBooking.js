@@ -67,6 +67,7 @@ const serviceBookingSchema = new mongoose.Schema(
     },
     estimatedPrice: Number,
     finalPrice: Number,
+    demoBookingRef: String,
     parentConfirmedAt: Date,
     providerAcceptedAt: Date,
     providerArrivedAt: Date,

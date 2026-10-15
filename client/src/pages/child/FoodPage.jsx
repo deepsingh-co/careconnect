@@ -68,7 +68,7 @@ export default function FoodPage() {
   return (
     <DashboardLayout title="Food & Grocery">
       <Alert type="demo" className="mb-4">
-        DEMO MODE: This is a sample catalogue. No real order will be placed with any restaurant or delivery service.
+        DEMO MODE: Zomato-style demo catalogue. No real order will be placed with any restaurant or delivery service.
       </Alert>
 
       {cartItems.length > 0 && (
@@ -123,6 +123,7 @@ export default function FoodPage() {
                 <UtensilsCrossed size={20} />
               </div>
               <p className="font-semibold text-gray-800 text-sm">{item.name}</p>
+              {item.restaurantName && <p className="text-xs text-gray-400 mt-0.5">{item.restaurantName}</p>}
               <p className="text-xs text-gray-500 mt-1 flex-1">{item.description}</p>
               <div className="flex items-center justify-between mt-3">
                 <span className="font-bold text-[#1e3a5f]">₹{item.price}</span>
@@ -143,7 +144,9 @@ export default function FoodPage() {
               <div key={o._id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                 <div>
                   <p className="text-sm font-medium text-gray-800">{o.items?.length} item(s) — ₹{o.estimatedTotal}</p>
+                  {o.restaurantName && <p className="text-xs text-gray-500">{o.restaurantName}</p>}
                   <p className="text-xs text-gray-500">{new Date(o.createdAt).toLocaleString('en-IN')}</p>
+                  {o.demoBookingRef && <p className="text-xs text-gray-400">Ref: {o.demoBookingRef}</p>}
                 </div>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={o.status} />

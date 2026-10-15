@@ -28,6 +28,7 @@ const ReminderEvent = require('../src/models/ReminderEvent');
 const ServiceProvider = require('../src/models/ServiceProvider');
 const ServiceBooking = require('../src/models/ServiceBooking');
 const Notification = require('../src/models/Notification');
+const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
 
 let parentToken, childToken, providerToken, adminToken;
 let parentId, childId, providerId, adminId;
@@ -372,6 +373,68 @@ describe('Service Bookings', () => {
     expect(res.status).toBe(201);
     expect(res.body.demoMode).toBe(true);
   });
+
+  test('Ride quotes compare Ola, Uber and Rapido (demo)', async () => {
+    const res = await request(app).get('/api/services/rides/quotes?pickup=Home&destination=City%20Hospital')
+      .set('Authorization', `Bearer ${parentToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.demoMode).toBe(true);
+    const providerIds = res.body.data.comparison.map((q) => q.providerId).sort();
+    expect(providerIds).toEqual(['ola', 'rapido', 'uber']);
+    expect(res.body.data.quotes.every((q) => q.isDemo === true)).toBe(true);
+  });
+
+  test('Ride quotes require pickup and destination', async () => {
+    const res = await request(app).get('/api/services/rides/quotes?pickup=Home')
+      .set('Authorization', `Bearer ${parentToken}`);
+    expect(res.status).toBe(400);
+  });
+
+  test('Ride booking with chosen provider stores demo reference', async () => {
+    const res = await request(app).post('/api/services/rides')
+      .set('Authorization', `Bearer ${parentToken}`)
+      .send({
+        pickup: { address: 'Home' },
+        destination: { address: 'Apollo Clinic' },
+        scheduledAt: new Date(Date.now() + 3600000),
+        providerId: 'uber',
+        vehicleId: 'uber-go',
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.data.ride.isDemo).toBe(true);
+    expect(res.body.data.ride.externalProvider).toBe('uber');
+    expect(res.body.data.ride.demoBookingRef).toMatch(/^UBER-DEMO-/);
+  });
+
+  test('Food menu returns Zomato-style demo catalogue', async () => {
+    const res = await request(app).get('/api/services/menu')
+      .set('Authorization', `Bearer ${parentToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.demoMode).toBe(true);
+    expect(res.body.data.menu.length).toBeGreaterThan(0);
+    expect(res.body.data.restaurants.length).toBeGreaterThan(0);
+  });
+
+  test('Food order stores Zomato-style demo reference', async () => {
+    const res = await request(app).post('/api/services/orders')
+      .set('Authorization', `Bearer ${parentToken}`)
+      .send({ items: [{ itemId: 'm2', name: 'Idli Sambhar (4 pcs)', quantity: 1, unitPrice: 80 }] });
+    expect(res.status).toBe(201);
+    expect(res.body.data.order.demoBookingRef).toMatch(/^ZOMATO-DEMO-/);
+  });
+
+  test('Service booking stores Urban Company demo reference', async () => {
+    const res = await request(app).post('/api/services/bookings')
+      .set('Authorization', `Bearer ${parentToken}`)
+      .send({
+        serviceCategory: 'gardening',
+        description: 'Demo UC booking',
+        scheduledAt: new Date(Date.now() + 86400000),
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.demoMode).toBe(true);
+    expect(res.body.data.booking.demoBookingRef).toMatch(/^UC-DEMO-/);
+  });
 });
 
 // ─── Family Linking ───────────────────────────────────────────────────────────
@@ -577,5 +640,66 @@ describe('Security', () => {
     const text = JSON.stringify(res.body);
     expect(text).not.toContain('JWT_SECRET');
     expect(text).not.toContain('MONGODB_URI');
+  });
+});
+
+// ─── Demo Integration Adapters ────────────────────────────────────────────────
+describe('Demo Integration Adapters', () => {
+  test('Ride comparison returns cheapest quote per provider', () => {
+    const comparison = rideProviders.getComparison({ pickup: 'Home', destination: 'Hospital' });
+    expect(comparison.map((q) => q.providerId).sort()).toEqual(['ola', 'rapido', 'uber']);
+    // Sorted by price ascending
+    for (let i = 1; i < comparison.length; i++) {
+      expect(comparison[i].price).toBeGreaterThanOrEqual(comparison[i - 1].price);
+    }
+  });
+
+  test('Ride quotes are deterministic for the same route', () => {
+    const a = rideProviders.getQuotes({ pickup: 'Home', destination: 'Hospital' });
+    const b = rideProviders.getQuotes({ pickup: 'Home', destination: 'Hospital' });
+    expect(a.map((q) => q.price)).toEqual(b.map((q) => q.price));
+    expect(a.map((q) => q.etaMin)).toEqual(b.map((q) => q.etaMin));
+  });
+
+  test('bookRide returns a DEMO ref and simulated driver', () => {
+    const booking = rideProviders.bookRide({
+      providerId: 'rapido', vehicleId: 'rapido-auto', pickup: 'Home', destination: 'Market',
+    });
+    expect(booking.ref).toMatch(/^RAPIDO-DEMO-/);
+    expect(booking.isDemo).toBe(true);
+    expect(booking.driverName).toBeTruthy();
+  });
+
+  test('bookRide returns null for an unknown provider', () => {
+    const booking = rideProviders.bookRide({
+      providerId: 'unknown', vehicleId: 'nope', pickup: 'Home', destination: 'Market',
+    });
+    expect(booking).toBeNull();
+  });
+
+  test('Food provider returns menu with restaurants and DEMO order refs', () => {
+    const menu = foodProviders.getMenu();
+    expect(menu.length).toBeGreaterThan(0);
+    expect(menu[0].restaurantName).toBeTruthy();
+    const placement = foodProviders.placeOrder({
+      items: [{ itemId: 'm1', name: 'Dal Khichdi', quantity: 1, unitPrice: 120 }],
+    });
+    expect(placement.ref).toMatch(/^ZOMATO-DEMO-/);
+    expect(placement.isDemo).toBe(true);
+    expect(placement.estimatedTotal).toBe(120);
+  });
+
+  test('Home service provider returns Urban Company DEMO ref', () => {
+    const booking = homeServiceProviders.bookService({ categoryId: 'home_cleaning' });
+    expect(booking.ref).toMatch(/^UC-DEMO-/);
+    expect(booking.isDemo).toBe(true);
+    expect(booking.proName).toBeTruthy();
+  });
+
+  test('Distance estimate is deterministic and within range', () => {
+    const d = rideProviders.estimateDistanceKm('Home', 'Hospital');
+    expect(d).toBe(rideProviders.estimateDistanceKm('Home', 'Hospital'));
+    expect(d).toBeGreaterThanOrEqual(4);
+    expect(d).toBeLessThanOrEqual(18.1);
   });
 });

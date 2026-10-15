@@ -5,19 +5,21 @@ const ServiceProvider = require('../models/ServiceProvider');
 const Notification = require('../models/Notification');
 const FamilyLink = require('../models/FamilyLink');
 const { resolveParentId } = require('../utils/authHelpers');
+const { rideProviders, foodProviders, homeServiceProviders } = require('../services/integrationAdapters');
 
 // ── Service Categories ────────────────────────────────────────────────────────
+const SERVICE_CATEGORIES = [
+  { id: 'home_cleaning', label: 'Home Cleaning', icon: 'home', basePrice: 499 },
+  { id: 'deep_cleaning', label: 'Deep Cleaning', icon: 'sparkles', basePrice: 1499 },
+  { id: 'gardening', label: 'Gardening', icon: 'flower', basePrice: 399 },
+  { id: 'car_wash', label: 'Car Wash', icon: 'car', basePrice: 299 },
+  { id: 'plumbing', label: 'Plumbing', icon: 'wrench', basePrice: 599 },
+  { id: 'electrical', label: 'Electrical', icon: 'zap', basePrice: 599 },
+  { id: 'other_home_service', label: 'Other Home Service', icon: 'tool', basePrice: null },
+];
+
 exports.getServiceCategories = async (req, res) => {
-  const categories = [
-    { id: 'home_cleaning', label: 'Home Cleaning', icon: 'home', basePrice: 499 },
-    { id: 'deep_cleaning', label: 'Deep Cleaning', icon: 'sparkles', basePrice: 1499 },
-    { id: 'gardening', label: 'Gardening', icon: 'flower', basePrice: 399 },
-    { id: 'car_wash', label: 'Car Wash', icon: 'car', basePrice: 299 },
-    { id: 'plumbing', label: 'Plumbing', icon: 'wrench', basePrice: 599 },
-    { id: 'electrical', label: 'Electrical', icon: 'zap', basePrice: 599 },
-    { id: 'other_home_service', label: 'Other Home Service', icon: 'tool', basePrice: null },
-  ];
-  res.json({ success: true, data: { categories } });
+  res.json({ success: true, data: { categories: SERVICE_CATEGORIES } });
 };
 
 // ── Providers ─────────────────────────────────────────────────────────────────
@@ -43,22 +45,34 @@ exports.createBooking = async (req, res, next) => {
     const parentId = await resolveParentId(req);
     if (!parentId) return res.status(403).json({ success: false, message: 'Not authorized.' });
 
+    const { providerId, ...bookingData } = req.body;
+
+    // Demo-mode: Urban Company-style booking when no verified local provider is chosen
+    const demo = !providerId ? homeServiceProviders.bookService({ categoryId: bookingData.serviceCategory }) : null;
+    const basePrice = SERVICE_CATEGORIES.find((c) => c.id === bookingData.serviceCategory)?.basePrice;
+
     const booking = await ServiceBooking.create({
-      ...req.body,
+      ...bookingData,
       parent: parentId,
       requestedBy: req.user._id,
       status: 'requested',
+      provider: providerId || undefined,
+      demoBookingRef: demo?.ref,
+      isDemo: Boolean(demo),
+      estimatedPrice: bookingData.estimatedPrice ?? basePrice ?? undefined,
     });
 
     // Notify family
     await _notifyFamily(parentId, {
       type: 'booking_new',
       title: 'New service booking',
-      body: `A ${booking.serviceCategory.replace(/_/g, ' ')} has been requested.`,
+      body: demo
+        ? `A ${booking.serviceCategory.replace(/_/g, ' ')} has been requested via ${demo.platform} (DEMO ref: ${demo.ref}).`
+        : `A ${booking.serviceCategory.replace(/_/g, ' ')} has been requested.`,
       data: { bookingId: booking._id },
     });
 
-    res.status(201).json({ success: true, data: { booking } });
+    res.status(201).json({ success: true, data: { booking }, demoMode: Boolean(demo) });
   } catch (err) {
     next(err);
   }
@@ -165,22 +179,68 @@ exports.cancelBooking = async (req, res, next) => {
 };
 
 // ── Ride Requests ──────────────────────────────────────────────────────────────
+exports.getRideQuotes = async (req, res, next) => {
+  try {
+    const { pickup, destination } = req.query;
+    if (!pickup || !destination) {
+      return res.status(400).json({ success: false, message: 'pickup and destination are required.' });
+    }
+    const quotes = rideProviders.getQuotes({ pickup, destination });
+    const comparison = rideProviders.getComparison({ pickup, destination });
+    res.json({
+      success: true,
+      data: { quotes, comparison, distanceKm: rideProviders.estimateDistanceKm(pickup, destination) },
+      demoMode: true,
+      notice: 'DEMO prices from Ola / Uber / Rapido are simulated. No real fare API is available.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createRide = async (req, res, next) => {
   try {
     const parentId = await resolveParentId(req);
     if (!parentId) return res.status(403).json({ success: false, message: 'Not authorized.' });
 
+    const { providerId, vehicleId, ...rideData } = req.body;
+    const pickup = rideData.pickup?.address || 'Home';
+    const destination = rideData.destination?.address || 'Destination';
+
+    // Demo-mode provider booking (Ola / Uber / Rapido price comparison)
+    let booking = rideProviders.bookRide({
+      providerId: providerId || 'ola',
+      vehicleId: vehicleId || 'ola-mini',
+      pickup,
+      destination,
+    });
+    if (!booking) {
+      const cheapest = rideProviders.getComparison({ pickup, destination })[0];
+      booking = rideProviders.bookRide({
+        providerId: cheapest.providerId,
+        vehicleId: cheapest.vehicleId,
+        pickup,
+        destination,
+      });
+    }
+
     const ride = await RideRequest.create({
-      ...req.body,
+      ...rideData,
       parent: parentId,
       requestedBy: req.user._id,
       isDemo: true, // No live ride provider configured
+      externalProvider: booking.providerId,
+      demoBookingRef: booking.ref,
+      estimatedFare: booking.price,
+      driverName: booking.driverName,
+      driverPhone: booking.driverPhone,
+      vehicleDetails: booking.vehicleDetails,
     });
 
     await _notifyFamily(parentId, {
       type: 'booking_new',
       title: 'Ride requested',
-      body: `A ride to ${ride.destination.address} has been requested.`,
+      body: `A ride to ${ride.destination.address} has been requested via ${booking.providerName} (${booking.vehicleLabel}). DEMO ref: ${booking.ref}.`,
       data: { rideId: ride._id },
     });
 
@@ -254,18 +314,14 @@ exports.cancelOrder = async (req, res, next) => {
 
 // ── Food Orders ───────────────────────────────────────────────────────────────
 exports.getMenu = async (req, res) => {
-  // Demo catalogue — no real food provider configured
-  const menu = [
-    { id: 'm1', name: 'Dal Khichdi', category: 'meals', price: 120, description: 'Light and healthy rice and lentil dish.' },
-    { id: 'm2', name: 'Idli Sambhar (4 pcs)', category: 'breakfast', price: 80, description: 'Steamed rice cakes with sambhar.' },
-    { id: 'm3', name: 'Poha', category: 'breakfast', price: 60, description: 'Flattened rice with vegetables.' },
-    { id: 'm4', name: 'Vegetable Soup', category: 'soups', price: 75, description: 'Warm vegetable broth.' },
-    { id: 'm5', name: 'Roti with Sabzi', category: 'meals', price: 100, description: 'Whole wheat roti with seasonal vegetable curry.' },
-    { id: 'm6', name: 'Curd Rice', category: 'meals', price: 90, description: 'Cooling curd mixed with rice.' },
-    { id: 'm7', name: 'Fresh Fruit Bowl', category: 'snacks', price: 80, description: 'Seasonal fresh fruits.' },
-    { id: 'm8', name: 'Green Tea', category: 'beverages', price: 30, description: 'Antioxidant-rich green tea.' },
-  ];
-  res.json({ success: true, data: { menu, demoMode: true, notice: 'This is a demo catalogue. No real order will be placed.' } });
+  // Demo catalogue (Zomato-style) — no real food provider configured
+  const menu = foodProviders.getMenu();
+  res.json({
+    success: true,
+    data: { menu, restaurants: foodProviders.restaurants },
+    demoMode: true,
+    notice: 'This is a demo catalogue. No real order will be placed.',
+  });
 };
 
 exports.createOrder = async (req, res, next) => {
@@ -273,17 +329,31 @@ exports.createOrder = async (req, res, next) => {
     const parentId = await resolveParentId(req);
     if (!parentId) return res.status(403).json({ success: false, message: 'Not authorized.' });
 
+    const { items = [], restaurantId, ...orderData } = req.body;
+    const placement = foodProviders.placeOrder({ items, restaurantId });
+
     const order = await FoodOrder.create({
-      ...req.body,
+      ...orderData,
+      items,
       parent: parentId,
       requestedBy: req.user._id,
       isDemo: true,
       status: 'placed',
+      restaurantName: placement.restaurantName,
+      demoBookingRef: placement.ref,
+      estimatedTotal: orderData.estimatedTotal ?? placement.estimatedTotal,
+    });
+
+    await _notifyFamily(parentId, {
+      type: 'booking_new',
+      title: 'Food order placed',
+      body: `A food order from ${placement.restaurantName} has been placed (DEMO ref: ${placement.ref}).`,
+      data: { orderId: order._id },
     });
 
     res.status(201).json({
       success: true,
-      data: { order },
+      data: { order, placement },
       demoMode: true,
       notice: 'Demo mode: no real order was placed with any restaurant or delivery service.',
     });

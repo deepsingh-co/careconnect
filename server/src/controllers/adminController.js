@@ -218,11 +218,20 @@ exports.getIntegrationStatus = async (req, res) => {
         status: config.email.provider ? 'configured' : 'simulated',
         provider: config.email.provider || null,
       },
-      rideProvider: { status: 'manual_fulfillment', notice: 'No live ride API configured.' },
-      foodProvider: { status: 'demo_catalogue', notice: 'Using demo catalogue.' },
+      rideProvider: {
+        status: 'demo_mode',
+        providers: ['Ola', 'Uber', 'Rapido'],
+        notice: 'No public ride-hailing API available. Price comparison & bookings are simulated (DEMO refs).',
+      },
+      foodProvider: {
+        status: 'demo_mode',
+        providers: ['Zomato-style demo catalogue'],
+        notice: 'No public consumer food-ordering API available. Orders are simulated (DEMO refs).',
+      },
       householdProviders: {
-        status: 'demo_data',
-        notice: 'Using fictional sample providers for demonstration.',
+        status: 'demo_mode',
+        providers: ['Urban Company (Demo)', 'Verified local providers'],
+        notice: 'Urban Company has no public API. Demo bookings plus real local provider records.',
       },
     },
   });

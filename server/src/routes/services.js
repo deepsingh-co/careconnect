@@ -19,6 +19,7 @@ router.patch('/bookings/:id/status', serviceController.updateBookingStatus);
 router.post('/bookings/:id/cancel', serviceController.cancelBooking);
 
 // Rides
+router.get('/rides/quotes', serviceController.getRideQuotes);
 router.post('/rides', serviceController.createRide);
 router.get('/rides', serviceController.getRides);
 router.patch('/rides/:id/cancel', serviceController.cancelRide);

@@ -15,6 +15,7 @@ const WellnessCheckin = require('../models/WellnessCheckin');
 const ReminderEvent = require('../models/ReminderEvent');
 const FamilyLink = require('../models/FamilyLink');
 const Notification = require('../models/Notification');
+const { rideProviders, foodProviders, homeServiceProviders } = require('../services/integrationAdapters');
 
 // ── Webhook Verification (Meta only) ─────────────────────────────────────────
 exports.verify = (req, res) => {
@@ -108,6 +109,10 @@ async function handleIncomingMessage(msg) {
     return;
   }
 
+  // Handle pending multi-step flows (ride quote choice, food menu choice)
+  const stateHandled = await handlePendingState(session, parentUser, from, messageText);
+  if (stateHandled) return;
+
   // Check for reminder acknowledgement
   const ackKeywords = { taken: ['taken', 'liya', 'li', 'yes', 'haan', 'done'], remind_later: ['later', 'baad', 'remind', 'wait'], need_help: ['need help', 'help', 'nahi', 'no'] };
   for (const [ack, keywords] of Object.entries(ackKeywords)) {
@@ -163,21 +168,28 @@ async function routeIntent(intent, session, parentUser, from, originalText) {
       break;
 
     case 'ride_booking':
-      session.state = 'collecting_ride';
-      session.pendingIntent = 'ride_booking';
-      session.pendingData = intent.details || {};
-      await session.save();
-      await whatsappService.sendMessage(from, getMsg('ride_instructions', lang));
+      if (intent.details?.destination) {
+        await sendRideQuotes(session, from, intent.details.destination);
+      } else {
+        session.state = 'collecting_ride';
+        session.pendingIntent = 'ride_booking';
+        session.pendingData = intent.details || {};
+        await session.save();
+        await whatsappService.sendMessage(from, getMsg('ride_ask_destination', lang));
+      }
       break;
 
     case 'food_order':
-      await whatsappService.sendMessage(from, getMsg('food_menu', lang));
+      await sendFoodMenu(session, from);
       break;
 
     case 'home_cleaning':
     case 'gardening':
     case 'car_wash':
     case 'other_home_service':
+    case 'plumbing':
+    case 'electrical': {
+      const uc = homeServiceProviders.bookService({ categoryId: intent.intent });
       if (parentUser) {
         await ServiceBooking.create({
           parent: parentUser._id,
@@ -187,21 +199,27 @@ async function routeIntent(intent, session, parentUser, from, originalText) {
           scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Next day
           status: 'requested',
           sourceChannel: 'whatsapp',
+          demoBookingRef: uc.ref,
         });
-        // Notify family
-        const links = await FamilyLink.find({ parent: parentUser._id, status: 'active' });
-        for (const link of links) {
-          await Notification.create({
-            recipient: link.child,
-            type: 'booking_new',
-            title: 'Service requested via WhatsApp',
-            body: `Your parent requested: ${intent.intent.replace(/_/g, ' ')}`,
-            data: {},
-          });
-        }
+        await notifyChildren(
+          parentUser,
+          'Service requested via WhatsApp',
+          `Your parent requested a home service (${intent.intent.replace(/_/g, ' ')}) via ${uc.platform}. DEMO ref: ${uc.ref}. Please verify.`,
+          'booking_new',
+          {}
+        );
       }
-      await whatsappService.sendMessage(from, getMsg('service_received', lang));
+      await whatsappService.sendMessage(
+        from,
+        t(
+          lang,
+          `Your service request has been received (DEMO booking via ${uc.platform}). Ref: ${uc.ref}. ${uc.proName} (rating ${uc.proRating}) — ${uc.arrivalWindow}. Your family has been notified for verification.`,
+          `Aapki service request mil gayi (DEMO booking via ${uc.platform}). Ref: ${uc.ref}. ${uc.proName} ${uc.arrivalWindow} aayenge. Parivaar ko bata diya.`,
+          `Service request mil gayi (DEMO via ${uc.platform})! Ref: ${uc.ref}. ${uc.proName} kal aayenge. Family ko bata diya.`
+        )
+      );
       break;
+    }
 
     case 'medicine_reminder':
       await whatsappService.sendMessage(from, getMsg('reminder_setup', lang));
@@ -263,6 +281,202 @@ async function handleEmergency(session, parentUser, message) {
   );
 }
 
+// ── Multi-step flow helpers (DEMO-mode integrations) ──────────────────────────
+function t(lang, en, hi, hinglish) {
+  if (lang === 'hi') return hi;
+  if (lang === 'hinglish') return hinglish;
+  return en;
+}
+
+/**
+ * Handles pending conversation flows:
+ *  - collecting_ride: message is treated as destination → send Ola/Uber/Rapido price comparison
+ *  - awaiting_ride_choice: number selects a provider → DEMO ride booking
+ *  - awaiting_food_choice: numbers select menu items → DEMO food order (Zomato-style)
+ */
+async function handlePendingState(session, parentUser, from, text) {
+  const clean = text.trim().toLowerCase();
+  const lang = session.language;
+
+  if (session.state === 'collecting_ride' && clean.length >= 3) {
+    await sendRideQuotes(session, from, text.trim());
+    return true;
+  }
+
+  if (session.state === 'awaiting_ride_choice' && parentUser) {
+    const n = parseInt(clean, 10);
+    const comparison = session.pendingData?.comparison || [];
+    if (!Number.isInteger(n) || n < 1 || n > comparison.length) return false;
+
+    const chosen = comparison[n - 1];
+    const destination = session.pendingData.destination;
+    const pickup = session.pendingData.pickup || 'Home';
+
+    const booking = rideProviders.bookRide({
+      providerId: chosen.providerId,
+      vehicleId: chosen.vehicleId,
+      pickup,
+      destination,
+    });
+
+    const ride = await RideRequest.create({
+      parent: parentUser._id,
+      requestedBy: parentUser._id,
+      pickup: { address: pickup },
+      destination: { address: destination },
+      scheduledAt: session.pendingData.scheduledAt ? new Date(session.pendingData.scheduledAt) : new Date(Date.now() + 2 * 60 * 60 * 1000),
+      status: 'requested',
+      isDemo: true,
+      externalProvider: booking.providerId,
+      demoBookingRef: booking.ref,
+      estimatedFare: booking.price,
+      driverName: booking.driverName,
+      driverPhone: booking.driverPhone,
+      vehicleDetails: booking.vehicleDetails,
+      sourceChannel: 'whatsapp',
+    });
+
+    await notifyChildren(
+      parentUser,
+      'Ride booked via WhatsApp — verification needed',
+      `Your parent booked a ride: ${booking.providerName} ${booking.vehicleLabel} to ${destination}, ₹${booking.price} (DEMO ref: ${booking.ref}). Please verify with them.`,
+      'booking_new',
+      { rideId: ride._id }
+    );
+
+    session.state = 'idle';
+    session.pendingIntent = null;
+    session.pendingData = null;
+    await session.save();
+
+    await whatsappService.sendMessage(
+      from,
+      t(
+        lang,
+        `✅ Ride booked (DEMO): ${booking.providerName} ${booking.vehicleLabel} to ${destination}.\nFare: ₹${booking.price} (~${booking.etaMin} min away).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Your family has been informed to verify.`,
+        `✅ Ride book ho gayi (DEMO): ${booking.providerName} ${booking.vehicleLabel}, ${destination}.\nKiraya: ₹${booking.price} (~${booking.etaMin} min).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Parivaar ko verify karne ke liye bata diya.`,
+        `✅ Ride booked (DEMO)! ${booking.providerName} ${booking.vehicleLabel} → ${destination}. ₹${booking.price}, ~${booking.etaMin} min. Ref: ${booking.ref}. Family ko verify karne bola hai.`
+      )
+    );
+    return true;
+  }
+
+  if (session.state === 'awaiting_food_choice' && parentUser) {
+    const nums = clean
+      .split(/[\s,]+/)
+      .map((x) => parseInt(x, 10))
+      .filter((n) => Number.isInteger(n));
+    const menu = session.pendingData?.menu || [];
+    const chosen = nums.map((n) => menu[n - 1]).filter(Boolean);
+    if (!chosen.length) return false;
+
+    const items = chosen.map((m) => ({ itemId: m.id, name: m.name, quantity: 1, unitPrice: m.price }));
+    const placement = foodProviders.placeOrder({ items });
+
+    const order = await FoodOrder.create({
+      parent: parentUser._id,
+      requestedBy: parentUser._id,
+      items,
+      isDemo: true,
+      status: 'placed',
+      restaurantName: placement.restaurantName,
+      demoBookingRef: placement.ref,
+      estimatedTotal: placement.estimatedTotal,
+      sourceChannel: 'whatsapp',
+    });
+
+    await notifyChildren(
+      parentUser,
+      'Food order placed via WhatsApp — verification needed',
+      `Your parent ordered food from ${placement.restaurantName}: ${items.map((i) => i.name).join(', ')} — ₹${placement.estimatedTotal} (DEMO ref: ${placement.ref}). Please verify.`,
+      'booking_new',
+      { orderId: order._id }
+    );
+
+    session.state = 'idle';
+    session.pendingIntent = null;
+    session.pendingData = null;
+    await session.save();
+
+    await whatsappService.sendMessage(
+      from,
+      t(
+        lang,
+        `✅ Order placed (DEMO): ${placement.restaurantName}.\nItems: ${items.map((i) => i.name).join(', ')}.\nTotal: ₹${placement.estimatedTotal} • ETA ~${placement.etaMin} min.\nRef: ${placement.ref}. Your family has been informed to verify.`,
+        `✅ Order ho gaya (DEMO): ${placement.restaurantName}.\nItems: ${items.map((i) => i.name).join(', ')}.\nTotal: ₹${placement.estimatedTotal} • ETA ~${placement.etaMin} min.\nRef: ${placement.ref}. Parivaar ko bata diya.`,
+        `✅ Order placed (DEMO)! ${items.map((i) => i.name).join(', ')} — ₹${placement.estimatedTotal}. Ref: ${placement.ref}. Family ko verify karne bola hai.`
+      )
+    );
+    return true;
+  }
+
+  return false;
+}
+
+/** Sends the Ola/Uber/Rapido DEMO price comparison and sets the choice state. */
+async function sendRideQuotes(session, from, destination) {
+  const lang = session.language;
+  const pickup = 'Home';
+  const comparison = rideProviders.getComparison({ pickup, destination });
+
+  session.state = 'awaiting_ride_choice';
+  session.pendingIntent = 'ride_booking';
+  session.pendingData = {
+    pickup,
+    destination,
+    scheduledAt: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+    comparison,
+  };
+  await session.save();
+
+  const lines = comparison.map((q, i) => `${i + 1}. ${q.providerName} ${q.vehicleLabel} — ₹${q.price} (~${q.etaMin} min)`);
+  await whatsappService.sendMessage(
+    from,
+    t(
+      lang,
+      `Ride options to ${destination} (DEMO prices — Ola / Uber / Rapido comparison):\n${lines.join('\n')}\n\nReply with a number to book your ride.`,
+      `Aapki ride ke options — ${destination} (DEMO prices, Ola / Uber / Rapido):\n${lines.join('\n')}\n\nNumber bhejein book karne ke liye.`,
+      `Ride options (${destination}) — DEMO price compare:\n${lines.join('\n')}\n\nNumber reply karein book karne ke liye.`
+    )
+  );
+}
+
+/** Sends the Zomato-style DEMO menu and sets the food choice state. */
+async function sendFoodMenu(session, from) {
+  const lang = session.language;
+  const menu = foodProviders.getMenu().slice(0, 8);
+
+  session.state = 'awaiting_food_choice';
+  session.pendingIntent = 'food_order';
+  session.pendingData = { menu: menu.map((m) => ({ id: m.id, name: m.name, price: m.price })) };
+  await session.save();
+
+  const lines = menu.map((m, i) => `${i + 1}. ${m.name} — ₹${m.price}`);
+  await whatsappService.sendMessage(
+    from,
+    t(
+      lang,
+      `Here is today's menu (DEMO — Zomato-style catalogue):\n${lines.join('\n')}\n\nReply with item numbers (e.g. 1, 3) to place your order.`,
+      `Aaj ka menu (DEMO):\n${lines.join('\n')}\n\nItem numbers bhejein order ke liye (jaise 1, 3).`,
+      `Aaj ka menu (DEMO):\n${lines.join('\n')}\n\nNumber bhejo order karne ke liye, jaise: 1,3`
+    )
+  );
+}
+
+/** Notify all linked family members (Notification + WhatsApp if number present). */
+async function notifyChildren(parentUser, title, body, type, data) {
+  if (!parentUser) return;
+  const links = await FamilyLink.find({ parent: parentUser._id, status: 'active' }).populate('child', 'name phone');
+  for (const link of links) {
+    const childId = link.child?._id || link.child;
+    await Notification.create({ recipient: childId, type, title, body, data });
+    if (link.child?.phone) {
+      await whatsappService.sendMessage(link.child.phone, `[CareConnect • DEMO] ${body}`);
+    }
+  }
+}
+
+
 // ── Response messages ─────────────────────────────────────────────────────────
 function getMsg(key, lang) {
   const messages = {
@@ -270,6 +484,11 @@ function getMsg(key, lang) {
       en: 'Great! Your wellness check-in has been recorded. Glad to hear you are doing well.',
       hi: 'Achha! Aapka wellness check-in record ho gaya. Aap theek hain yeh sunkar achha laga.',
       hinglish: 'Great! Aapka wellness check-in ho gaya. Achha laga sunke!',
+    },
+    ride_ask_destination: {
+      en: 'Sure, I will help you book a ride. Where do you want to go? Please tell me the destination.',
+      hi: 'Bilkul, main ride book karne mein madad karunga. Kahan jaana hai? Destination batayein.',
+      hinglish: 'Ride book kar dete hain! Kahan jaana hai? Destination batao.',
     },
     ride_instructions: {
       en: 'I will help you book a ride. Please tell me: 1) Pickup address 2) Destination 3) Date and time.',

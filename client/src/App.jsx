@@ -16,7 +16,7 @@ import FamilyPage from './pages/child/FamilyPage';
 import EmergencyPage from './pages/child/EmergencyPage';
 import NotificationsPage from './pages/child/NotificationsPage';
 
-import ParentDashboard from './pages/parent/ParentDashboard';
+import WhatsAppConnect from './pages/parent/WhatsAppConnect';
 
 import ProviderDashboard from './pages/provider/ProviderDashboard';
 import ProviderProfilePage from './pages/provider/ProviderProfilePage';
@@ -37,14 +37,14 @@ function RoleDashboard() {
       </div>
     );
   }
-  if (user?.role === 'parent') return <ParentDashboard />;
+  if (user?.role === 'parent') return <WhatsAppConnect />;
   if (user?.role === 'provider') return <Navigate to="/provider/jobs" replace />;
   if (user?.role === 'admin') return <Navigate to="/admin" replace />;
   return <ChildDashboard />;
 }
 
-// Shared care pages: allow parent, child, admin
-const CareRoles = ['parent', 'child', 'admin'];
+// Shared care pages: children and admins only — parents use WhatsApp
+const CareRoles = ['child', 'admin'];
 
 export default function App() {
   return (

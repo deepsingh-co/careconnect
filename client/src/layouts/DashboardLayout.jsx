@@ -8,16 +8,6 @@ import {
 } from 'lucide-react';
 
 const navByRole = {
-  parent: [
-    { to: '/dashboard', label: 'Home', icon: Home },
-    { to: '/reminders', label: 'Reminders', icon: Pill },
-    { to: '/bookings', label: 'Bookings', icon: Briefcase },
-    { to: '/rides', label: 'Rides', icon: Car },
-    { to: '/food', label: 'Food', icon: UtensilsCrossed },
-    { to: '/family', label: 'Family', icon: Users },
-    { to: '/emergency', label: 'Emergency', icon: HeartPulse },
-    { to: '/notifications', label: 'Alerts', icon: Bell },
-  ],
   child: [
     { to: '/dashboard', label: 'Home', icon: LayoutDashboard },
     { to: '/reminders', label: 'Reminders', icon: Pill },

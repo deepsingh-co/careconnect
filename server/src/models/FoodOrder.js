@@ -29,6 +29,8 @@ const foodOrderSchema = new mongoose.Schema(
     deliveryTime: Date,
     specialInstructions: { type: String, maxlength: 300 },
     estimatedTotal: Number,
+    restaurantName: String,
+    demoBookingRef: String,
     status: {
       type: String,
       enum: [

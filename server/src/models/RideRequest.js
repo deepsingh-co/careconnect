@@ -45,6 +45,8 @@ const rideRequestSchema = new mongoose.Schema(
     },
     estimatedFare: Number,
     finalFare: Number,
+    externalProvider: String,
+    demoBookingRef: String,
     driverName: String,
     driverPhone: String,
     vehicleDetails: String,

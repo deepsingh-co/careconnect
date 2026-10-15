@@ -154,6 +154,7 @@ export default function BookingsPage() {
                   <span className="flex items-center gap-1"><MapPin size={12} /> {b.serviceAddress?.city}</span>
                   <span>{b.serviceType?.replace(/_/g, ' ')}</span>
                   {b.estimatedPrice && <span className="font-medium text-gray-600">₹{b.estimatedPrice}</span>}
+                  {b.demoBookingRef && <span className="text-gray-400">Ref: {b.demoBookingRef}</span>}
                 </div>
               </div>
               <div className="shrink-0">

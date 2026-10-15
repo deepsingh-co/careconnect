@@ -13,6 +13,8 @@ const conversationSessionSchema = new mongoose.Schema(
         'collecting_service',
         'collecting_reminder',
         'awaiting_confirmation',
+        'awaiting_ride_choice',
+        'awaiting_food_choice',
         'emergency',
       ],
       default: 'idle',
