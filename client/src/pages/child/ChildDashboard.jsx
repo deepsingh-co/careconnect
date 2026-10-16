@@ -134,8 +134,8 @@ export default function ChildDashboard() {
             </div>
           ) : (
             <div>
-              <p className="text-sm text-gray-500 mb-3">No parent linked yet. Share an invitation code or accept one.</p>
-              <Link to="/family"><Button size="sm">Link a Parent</Button></Link>
+              <p className="text-sm text-gray-500 mb-3">No parent linked yet. Add your parent's details with WhatsApp OTP verification, or accept an invitation code.</p>
+              <Link to="/family"><Button size="sm">Add Parent Details</Button></Link>
             </div>
           )}
         </Card>

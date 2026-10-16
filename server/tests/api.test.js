@@ -763,3 +763,76 @@ describe('Demo Integration Adapters', () => {
     expect(d).toBeLessThanOrEqual(18.1);
   });
 });
+
+// ─── Add Parent Details + OTP Verification ────────────────────────────────────
+describe('Add Parent via OTP', () => {
+  const parentPhone = '+919888777666';
+  let demoOtp;
+
+  test('Parent role cannot request OTP', async () => {
+    const res = await request(app).post('/api/family/otp/request')
+      .set('Authorization', `Bearer ${parentToken}`)
+      .send({ name: 'Someone', phone: '+919888777111' });
+    expect(res.status).toBe(403);
+  });
+
+  test('Invalid phone number is rejected', async () => {
+    const res = await request(app).post('/api/family/otp/request')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ name: 'Bad Phone', phone: 'abc' });
+    expect(res.status).toBe(400);
+  });
+
+  test('Child can request OTP for parent details (demo returns OTP)', async () => {
+    const res = await request(app).post('/api/family/otp/request')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ name: 'OTP Test Parent', phone: parentPhone, relationship: 'Mother' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.demoOtp).toMatch(/^\d{6}$/);
+    expect(res.body.demoMode).toBe(true);
+    demoOtp = res.body.data.demoOtp;
+  });
+
+  test('Wrong OTP is rejected with attempts left', async () => {
+    const res = await request(app).post('/api/family/otp/verify')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ phone: parentPhone, otp: '000000' });
+    expect(res.status).toBe(400);
+    expect(res.body.data.attemptsLeft).toBeGreaterThan(0);
+  });
+
+  test('Correct OTP creates parent account and activates family link', async () => {
+    const res = await request(app).post('/api/family/otp/verify')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ phone: parentPhone, otp: demoOtp });
+    expect(res.status).toBe(200);
+    expect(res.body.data.parent.name).toBe('OTP Test Parent');
+    expect(res.body.data.parent.role).toBe('parent');
+    expect(res.body.data.parent.phone).toBe(parentPhone);
+    expect(res.body.data.parent.phoneVerified).toBe(true);
+    expect(res.body.data.link.status).toBe('active');
+  });
+
+  test('Family list now includes the OTP-linked parent', async () => {
+    const res = await request(app).get('/api/family')
+      .set('Authorization', `Bearer ${childToken}`);
+    expect(res.status).toBe(200);
+    const match = res.body.data.links.find((l) => l.parent?.phone === parentPhone);
+    expect(match).toBeDefined();
+    expect(match.status).toBe('active');
+  });
+
+  test('Already-linked parent cannot be added again', async () => {
+    const res = await request(app).post('/api/family/otp/request')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ name: 'OTP Test Parent', phone: parentPhone });
+    expect(res.status).toBe(409);
+  });
+
+  test('Used OTP cannot be replayed', async () => {
+    const res = await request(app).post('/api/family/otp/verify')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ phone: parentPhone, otp: demoOtp });
+    expect(res.status).toBe(404);
+  });
+});

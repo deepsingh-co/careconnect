@@ -28,6 +28,4 @@ const conversationSessionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-conversationSessionSchema.index({ whatsappNumber: 1 });
-
 module.exports = mongoose.model('ConversationSession', conversationSessionSchema);

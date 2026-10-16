@@ -23,6 +23,7 @@ const notificationSchema = new mongoose.Schema(
         'emergency_alert',
         'family_invitation',
         'family_link_accepted',
+        'parent_added',
         'system',
       ],
       required: true,

@@ -1,9 +1,9 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { Card, Button, Badge, EmptyState, Skeleton, Alert, Input } from '../../components/ui';
+import { Card, Button, Badge, EmptyState, Skeleton, Alert, Input, Select } from '../../components/ui';
 import api from '../../services/api';
-import { Users, Copy, Check, Link as LinkIcon, Shield } from 'lucide-react';
+import { Users, Copy, Check, Link as LinkIcon, Shield, UserPlus, Phone } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function FamilyPage() {
@@ -15,6 +15,13 @@ export default function FamilyPage() {
   const [acceptCode, setAcceptCode] = useState('');
   const [accepting, setAccepting] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Add Parent Details + OTP
+  const [parentForm, setParentForm] = useState({ name: '', phone: '+91', relationship: 'Mother' });
+  const [otpSent, setOtpSent] = useState(null); // { phone, demoOtp, notice }
+  const [otp, setOtp] = useState('');
+  const [sendingOtp, setSendingOtp] = useState(false);
+  const [verifyingOtp, setVerifyingOtp] = useState(false);
 
   useEffect(() => { load(); }, []);
 
@@ -49,6 +56,38 @@ export default function FamilyPage() {
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to accept invitation');
     } finally { setAccepting(false); }
+  }
+
+  async function sendParentOtp() {
+    if (!parentForm.name.trim()) { toast.error("Parent ka naam daaliye"); return; }
+    setSendingOtp(true);
+    try {
+      const res = await api.post('/family/otp/request', parentForm);
+      setOtpSent(res.data.data);
+      toast.success(`OTP sent to ${parentForm.phone} on WhatsApp`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to send OTP');
+    } finally { setSendingOtp(false); }
+  }
+
+  async function verifyParentOtp() {
+    if (!otp.trim()) { toast.error('OTP daaliye'); return; }
+    setVerifyingOtp(true);
+    try {
+      const res = await api.post('/family/otp/verify', { phone: otpSent.phone, otp: otp.trim() });
+      toast.success(`${res.data.data.parent.name} verified & linked!`);
+      setOtpSent(null);
+      setOtp('');
+      setParentForm({ name: '', phone: '+91', relationship: 'Mother' });
+      load();
+    } catch (err) {
+      const d = err.response?.data;
+      toast.error(
+        d?.data?.attemptsLeft != null
+          ? `${d.message} (${d.data.attemptsLeft} attempts left)`
+          : d?.message || 'Verification failed'
+      );
+    } finally { setVerifyingOtp(false); }
   }
 
   async function updateConsent(linkId, permissions) {
@@ -141,6 +180,57 @@ export default function FamilyPage() {
                   </div>
                   <Button variant="secondary" size="sm" onClick={() => setCode('')}>Generate New Code</Button>
                 </div>
+              )}
+            </Card>
+          )}
+
+          {user?.role === 'child' && (
+            <Card className="p-5">
+              <h3 className="font-semibold text-[#1e3a5f] mb-4 flex items-center gap-2"><UserPlus size={18} /> Add Parent Details</h3>
+              {!otpSent ? (
+                <>
+                  <p className="text-sm text-gray-500 mb-4">
+                    Apne parent ki details bharein — unke WhatsApp par ek OTP verification code jayega.
+                  </p>
+                  <div className="space-y-3">
+                    <Input label="Parent's Name" placeholder="e.g. Kamla Devi" value={parentForm.name}
+                      onChange={(e) => setParentForm({ ...parentForm, name: e.target.value })} />
+                    <Input label="WhatsApp Number" placeholder="+919876543210" value={parentForm.phone}
+                      onChange={(e) => setParentForm({ ...parentForm, phone: e.target.value })} />
+                    <Select label="Relationship" value={parentForm.relationship}
+                      onChange={(e) => setParentForm({ ...parentForm, relationship: e.target.value })}>
+                      {['Mother', 'Father', 'Grandmother', 'Grandfather', 'Other'].map((r) => (
+                        <option key={r}>{r}</option>
+                      ))}
+                    </Select>
+                    <Button onClick={sendParentOtp} loading={sendingOtp} className="w-full">
+                      <Phone size={16} className="mr-1" /> Send OTP on WhatsApp
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <p className="text-sm text-gray-500 mb-3">
+                    OTP sent to <span className="font-medium text-gray-700">{otpSent.phone}</span> on WhatsApp.
+                    Ask your parent for the 6-digit code.
+                  </p>
+                  {otpSent.demoOtp && (
+                    <div className="mb-3 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-2.5">
+                      DEMO MODE: WhatsApp connected nahi hai — OTP yahan dikh raha hai:{' '}
+                      <span className="font-mono font-bold tracking-wider">{otpSent.demoOtp}</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Input placeholder="6-digit OTP" value={otp} maxLength={6}
+                      className="flex-1 font-mono tracking-widest text-center"
+                      onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} />
+                    <Button onClick={verifyParentOtp} loading={verifyingOtp}>Verify & Link</Button>
+                  </div>
+                  <button className="text-xs text-teal-600 mt-3 hover:underline"
+                    onClick={() => { setOtpSent(null); setOtp(''); }}>
+                    ← Number badalna hai / dobara OTP bhejein
+                  </button>
+                </>
               )}
             </Card>
           )}
