@@ -1,42 +1,59 @@
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import Logo from '../../components/Logo';
-import { Badge } from '../../components/ui';
-import {
-  MessageCircle, Sparkles, ShieldCheck, Car, UtensilsCrossed,
-  Home, Pill, LogOut, CheckCircle2, Phone,
-} from 'lucide-react';
+import api from '../../services/api';
+import { Send, LogOut } from 'lucide-react';
 
-const DEMO_WHATSAPP_NUMBER = '+91 98765 43210';
+const QUICK_REPLIES = ['Khana chahiye', 'Ride chahiye', 'Safai karani hai', 'Dawai ka reminder lagao', 'Madad chahiye'];
 
-const examples = [
-  { icon: UtensilsCrossed, text: 'Khana chahiye' },
-  { icon: Car, text: 'Doctor ke paas jaana hai kal' },
-  { icon: Pill, text: 'Dawai ka reminder lagao' },
-  { icon: Home, text: 'Ghar ki safai karani hai' },
-];
-
-const steps = [
-  {
-    icon: MessageCircle,
-    title: 'Aap WhatsApp par message karein',
-    desc: 'Hindi, English ya Hinglish — jaise aap kisi apne ko message karte hain. Voice note bhi chalega.',
-  },
-  {
-    icon: Sparkles,
-    title: 'AI aapki baat samajhta hai',
-    desc: 'Aapki zaroorat samajh kar turant help arrange karta hai — khana, ride, dawai ya ghar ka kaam.',
-  },
-  {
-    icon: ShieldCheck,
-    title: 'Bade kaam se pehle family ki approval',
-    desc: 'Har important booking se pehle aapke bachche ko message jata hai — verify karne ke liye.',
-  },
-];
+function nowTime() {
+  return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+}
 
 export default function WhatsAppConnect() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const [messages, setMessages] = useState(() => [
+    {
+      id: 'welcome',
+      from: 'bot',
+      text: `Namaste ${user?.name?.split(' ')[0] || ''} ji 🙏\nMain aapka CareConnect assistant hoon.\n\nYahan WhatsApp ki tarah message bhejein — jaise:\n• "Khana chahiye"\n• "Doctor ke paas jaana hai kal"\n• "Safai karani hai"`,
+      time: nowTime(),
+    },
+  ]);
+  const [input, setInput] = useState('');
+  const [sending, setSending] = useState(false);
+  const endRef = useRef(null);
+
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages, sending]);
+
+  async function sendMessage(textArg) {
+    const text = (textArg ?? input).trim();
+    if (!text || sending) return;
+    setInput('');
+    setMessages((m) => [...m, { id: `u_${Date.now()}`, from: 'user', text, time: nowTime() }]);
+    setSending(true);
+    try {
+      const res = await api.post('/simulator/whatsapp', { message: text });
+      const replies = res.data?.data?.replies || [];
+      if (!replies.length) {
+        setMessages((m) => [...m, { id: `b_${Date.now()}`, from: 'bot', text: 'Ji, main sun raha hoon. Kuch aur batayein?', time: nowTime() }]);
+      } else {
+        setMessages((m) => [...m, ...replies.map((r, i) => ({ id: `b_${Date.now()}_${i}`, from: 'bot', text: r.text, time: nowTime() }))]);
+      }
+    } catch (err) {
+      setMessages((m) => [...m, {
+        id: `e_${Date.now()}`,
+        from: 'bot',
+        text: err.response?.data?.message || 'Kuch problem aa gayi. Dobara try karein.',
+        time: nowTime(),
+      }]);
+    } finally {
+      setSending(false);
+    }
+  }
 
   const handleLogout = async () => {
     await logout();
@@ -44,85 +61,99 @@ export default function WhatsAppConnect() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 via-white to-white">
-      <header className="border-b border-gray-100 bg-white/95 backdrop-blur sticky top-0 z-40">
-        <div className="max-w-4xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Logo size={32} />
-            <span className="text-lg font-bold text-[#1e3a5f]">CareConnect</span>
-          </div>
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-lg"
-          >
-            <LogOut size={16} />
-            Logout
-          </button>
+    <div className="h-dvh flex flex-col bg-[#efeae2]">
+      {/* WhatsApp-style header */}
+      <header className="bg-[#008069] text-white px-4 py-2.5 flex items-center gap-3 shrink-0">
+        <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center font-bold text-sm">CC</div>
+        <div className="flex-1 min-w-0">
+          <p className="font-semibold leading-tight truncate">CareConnect Assistant</p>
+          <p className="text-xs text-white/80">{sending ? 'typing…' : 'online'}</p>
         </div>
+        <button onClick={handleLogout} className="p-2 rounded-full hover:bg-white/10" title="Logout" aria-label="Logout">
+          <LogOut size={20} />
+        </button>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4 py-10">
-        <div className="text-center mb-10">
-          <Badge variant="success" className="mb-4">WhatsApp-only account</Badge>
-          <h1 className="text-3xl md:text-4xl font-bold text-[#1e3a5f] mb-3">
-            Namaste, {user?.name?.split(' ')[0] || ''} ji 🙏
-          </h1>
-          <p className="text-lg text-gray-600 max-w-2xl mx-auto leading-relaxed">
-            Aapko kisi app ya website ki zaroorat nahi hai. Aapki saari care — dawai, khana, ride,
-            ghar ka kaam — seedha <span className="font-semibold text-teal-700">WhatsApp</span> par hoti hai.
-          </p>
-        </div>
+      {/* Demo strip */}
+      <div className="bg-amber-100 text-amber-900 text-center text-xs py-1.5 px-3 shrink-0">
+        DEMO MODE — yeh WhatsApp ka simulated version hai. Koi real WhatsApp message nahi jata.
+      </div>
 
-        <div className="bg-white rounded-2xl border-2 border-teal-200 shadow-sm p-6 md:p-8 mb-8 text-center">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-green-100 mb-4">
-            <MessageCircle size={32} className="text-green-600" />
-          </div>
-          <h2 className="text-xl font-bold text-[#1e3a5f] mb-1">Start on WhatsApp</h2>
-          <p className="text-gray-500 text-sm mb-4">
-            Is number par "Hi" bhejein — baaki sab hum sambhal lenge.
-          </p>
-          <div className="inline-flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 text-lg font-semibold text-[#1e3a5f]">
-            <Phone size={18} className="text-green-600" />
-            {DEMO_WHATSAPP_NUMBER}
-          </div>
-          <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 inline-block">
-            DEMO MODE — messages are simulated for this demo. No real WhatsApp is connected.
-          </p>
-        </div>
-
-        <div className="grid md:grid-cols-3 gap-4 mb-10">
-          {steps.map((s, i) => (
-            <div key={s.title} className="bg-white rounded-2xl border border-gray-200 p-6">
-              <div className="w-11 h-11 bg-teal-50 rounded-xl flex items-center justify-center mb-4">
-                <s.icon size={22} className="text-teal-600" />
+      {/* Messages */}
+      <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4">
+        <div className="max-w-2xl mx-auto space-y-2">
+          {messages.map((m) => (
+            <div key={m.id} className={`flex ${m.from === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div
+                className={`max-w-[85%] sm:max-w-[75%] rounded-lg px-3 py-2 shadow-sm ${
+                  m.from === 'user' ? 'bg-[#d9fdd3] rounded-tr-none' : 'bg-white rounded-tl-none'
+                }`}
+              >
+                <p className="text-sm text-gray-800 whitespace-pre-line">{m.text}</p>
+                <p className="text-[10px] text-gray-400 text-right mt-1">{m.time}</p>
               </div>
-              <p className="text-xs font-semibold text-teal-600 mb-1">STEP {i + 1}</p>
-              <h3 className="font-semibold text-[#1e3a5f] mb-2">{s.title}</h3>
-              <p className="text-sm text-gray-600 leading-relaxed">{s.desc}</p>
             </div>
           ))}
-        </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 p-6 mb-10">
-          <h2 className="font-semibold text-[#1e3a5f] mb-4">Aise message bhejein</h2>
-          <div className="grid sm:grid-cols-2 gap-3">
-            {examples.map((e) => (
-              <div key={e.text} className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3">
-                <e.icon size={18} className="text-teal-600 flex-shrink-0" />
-                <span className="text-sm text-gray-700">"{e.text}"</span>
+          {sending && (
+            <div className="flex justify-start">
+              <div className="bg-white rounded-lg rounded-tl-none px-4 py-3 shadow-sm">
+                <div className="flex gap-1">
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.15s]" />
+                  <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce [animation-delay:0.3s]" />
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="mt-5 flex flex-wrap gap-x-6 gap-y-2 text-sm text-gray-500">
-            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Ride me pehle Ola / Uber / Rapido ke price compare hote hain</span>
-            <span className="flex items-center gap-1.5"><CheckCircle2 size={14} className="text-green-500" /> Family ko verification message jata hai</span>
-          </div>
+            </div>
+          )}
+          <div ref={endRef} />
         </div>
-
-        <p className="text-center text-xs text-gray-400 pb-8">
-          CareConnect is not a medical service. For emergencies, call 112.
-        </p>
       </main>
+
+      {/* Quick replies */}
+      <div className="px-3 sm:px-6 pb-2 shrink-0">
+        <div className="max-w-2xl mx-auto flex gap-2 overflow-x-auto pb-1">
+          {QUICK_REPLIES.map((q) => (
+            <button
+              key={q}
+              onClick={() => sendMessage(q)}
+              disabled={sending}
+              className="shrink-0 text-xs bg-white border border-gray-200 rounded-full px-3 py-1.5 text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+            >
+              {q}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Input bar */}
+      <footer className="bg-[#f0f2f5] px-3 sm:px-6 py-2.5 shrink-0 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+        <div className="max-w-2xl mx-auto flex items-center gap-2">
+          <input
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+              }
+            }}
+            placeholder="Message likhein…"
+            className="flex-1 rounded-full px-4 py-2.5 text-sm bg-white border border-gray-200 focus:outline-none focus:border-teal-500"
+          />
+          <button
+            onClick={() => sendMessage()}
+            disabled={sending || !input.trim()}
+            className="w-11 h-11 rounded-full bg-[#008069] text-white flex items-center justify-center hover:bg-[#006f5c] disabled:opacity-50 shrink-0"
+            aria-label="Send message"
+          >
+            <Send size={18} />
+          </button>
+        </div>
+        <p className="max-w-2xl mx-auto text-center text-[10px] text-gray-400 mt-1.5">
+          Emergency ke liye 112 call karein. CareConnect medical service nahi hai.
+        </p>
+      </footer>
     </div>
   );
 }

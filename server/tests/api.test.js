@@ -582,6 +582,66 @@ describe('WhatsApp Webhook', () => {
   });
 });
 
+// ─── WhatsApp Simulator (Demo) ───────────────────────────────────────────────
+describe('WhatsApp Simulator', () => {
+  // Dedicated parent so webhook tests (same phone number) cannot leak session state
+  let simParentToken;
+
+  beforeAll(async () => {
+    const res = await request(app).post('/api/auth/register').send({
+      name: 'Sim Parent',
+      email: 'simparent@test.local',
+      password: 'TestPass123',
+      role: 'parent',
+      phone: '+919999999950',
+    });
+    simParentToken = res.body.data.token;
+  });
+
+  const post = (text, token = simParentToken) =>
+    request(app).post('/api/simulator/whatsapp').set('Authorization', `Bearer ${token}`).send({ message: text });
+
+  test('Simulator rejects non-parent roles', async () => {
+    const res = await post('Khana chahiye', childToken);
+    expect(res.status).toBe(403);
+  });
+
+  test('Empty message is rejected', async () => {
+    const res = await post('   ');
+    expect(res.status).toBe(400);
+  });
+
+  test('Food flow: menu is returned then order is placed', async () => {
+    const r1 = await post('Khana chahiye');
+    expect(r1.status).toBe(200);
+    expect(r1.body.data.replies.length).toBeGreaterThan(0);
+    expect(r1.body.data.replies[0].text.toLowerCase()).toContain('menu');
+
+    const r2 = await post('1');
+    expect(r2.status).toBe(200);
+    expect(r2.body.data.replies[0].text).toContain('Order placed');
+    expect(r2.body.data.replies[0].text).toMatch(/ZOMATO-DEMO-/);
+  });
+
+  test('Ride flow: destination → quotes → booking', async () => {
+    const r1 = await post('Mujhe ride chahiye');
+    expect(r1.body.data.replies[0].text).toContain('Destination');
+
+    const r2 = await post('City Hospital');
+    expect(r2.body.data.replies[0].text).toContain('Ride options');
+
+    const r3 = await post('1');
+    expect(r3.body.data.replies[0].text).toContain('Ride booked');
+    expect(r3.body.data.replies[0].text).toMatch(/-DEMO-/);
+  });
+
+  test('Home service message creates a demo booking reply', async () => {
+    const res = await post('Ghar ki safai karani hai');
+    expect(res.status).toBe(200);
+    expect(res.body.data.replies[0].text).toContain('UC-DEMO-');
+  });
+});
+
 // ─── Admin ────────────────────────────────────────────────────────────────────
 describe('Admin', () => {
   test('Admin can list users', async () => {

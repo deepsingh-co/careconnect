@@ -21,6 +21,7 @@ const webhookRoutes = require('./routes/webhooks');
 const emergencyRoutes = require('./routes/emergency');
 const notificationRoutes = require('./routes/notifications');
 const wellnessRoutes = require('./routes/wellness');
+const simulatorRoutes = require('./routes/simulator');
 
 const app = express();
 
@@ -76,6 +77,7 @@ app.use('/api/admin', adminRoutes);
 app.use('/api/emergency', emergencyRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/wellness', wellnessRoutes);
+app.use('/api/simulator', simulatorRoutes);
 
 // ── Not found ─────────────────────────────────────────────────────────────────
 app.use((req, res) => {

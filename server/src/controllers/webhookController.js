@@ -39,6 +39,52 @@ exports.receive = async (req, res) => {
   }
 };
 
+// ── Web Simulator (demo only) ─────────────────────────────────────────────────
+/**
+ * Processes a message through the exact same engine as the WhatsApp webhook,
+ * capturing the bot's outgoing replies so the web chat can render them.
+ * No real WhatsApp message is sent.
+ */
+exports.simulate = async (req, res, next) => {
+  try {
+    const message = String(req.body?.message || '').trim();
+    if (!message) {
+      return res.status(400).json({ success: false, message: 'message is required.' });
+    }
+
+    const from = req.user.phone;
+    if (!from) {
+      return res.status(400).json({ success: false, message: 'Your account has no phone number configured.' });
+    }
+
+    const capture = whatsappService.startCapture();
+    try {
+      await handleIncomingMessage({
+        from,
+        id: `sim_${req.user._id}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        text: message,
+        type: 'text',
+      });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    res.json({
+      success: true,
+      data: {
+        // Only show replies addressed to this parent — family verification
+        // messages go to children's phones (also captured for transparency).
+        replies: capture.filter((c) => c.to === from).map((c) => ({ text: c.text, at: c.at })),
+        familyNotified: capture.filter((c) => c.to !== from).map((c) => ({ text: c.text, at: c.at })),
+      },
+      demoMode: true,
+      notice: 'Demo simulator: messages are processed by the same engine as the WhatsApp webhook. Nothing is sent on real WhatsApp.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
 async function processWebhookPayload(body, rawBody, signature) {
   // Verify signature for Meta
   if (config.whatsapp.provider === 'meta' && rawBody) {

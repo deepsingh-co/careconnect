@@ -8,6 +8,7 @@ class WhatsappService {
   constructor() {
     this.provider = config.whatsapp.provider;
     this.isDemo = !this.provider;
+    this._capture = null;
   }
 
   getStatus() {
@@ -18,7 +19,26 @@ class WhatsappService {
     };
   }
 
+  /**
+   * In-memory capture for the web simulator (demo only).
+   * While active, every outgoing message is recorded AND still processed normally.
+   */
+  startCapture() {
+    this._capture = [];
+    return this._capture;
+  }
+
+  stopCapture() {
+    const captured = this._capture || [];
+    this._capture = null;
+    return captured;
+  }
+
   async sendMessage(to, text) {
+    if (this._capture) {
+      this._capture.push({ to, text, at: new Date().toISOString() });
+    }
+
     if (this.isDemo) {
       console.log(`[WhatsApp DEMO] → ${to}: ${text}`);
       return { success: true, demo: true, to, text };
