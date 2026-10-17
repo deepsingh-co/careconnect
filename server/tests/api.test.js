@@ -877,3 +877,82 @@ describe('Add Parent via OTP', () => {
     expect(res.body.data.demoOtp).toMatch(/^\d{6}$/);
   });
 });
+
+// ─── Phone + WhatsApp OTP Auth (children) ─────────────────────────────────────
+describe('Phone OTP Auth (children)', () => {
+  const authPhone = '+919555444333';
+  let signupOtp;
+  let createdUserId;
+  let sessionToken;
+
+  test('Invalid phone number is rejected', async () => {
+    const res = await request(app).post('/api/auth/otp/request').send({ phone: 'not-a-number' });
+    expect(res.status).toBe(400);
+  });
+
+  test('Request OTP for a new number (signup)', async () => {
+    const res = await request(app).post('/api/auth/otp/request').send({ phone: authPhone });
+    expect(res.status).toBe(201);
+    expect(res.body.data.existingUser).toBe(false);
+    expect(res.body.data.demoOtp).toMatch(/^\d{6}$/);
+    signupOtp = res.body.data.demoOtp;
+  });
+
+  test('Wrong OTP is rejected with attempts left', async () => {
+    const res = await request(app).post('/api/auth/otp/verify')
+      .send({ phone: authPhone, otp: '000000' });
+    expect(res.status).toBe(400);
+    expect(res.body.data.attemptsLeft).toBeGreaterThan(0);
+  });
+
+  test('Correct OTP for a new user asks for a name first', async () => {
+    const res = await request(app).post('/api/auth/otp/verify')
+      .send({ phone: authPhone, otp: signupOtp });
+    expect(res.status).toBe(400);
+    expect(res.body.data.needsName).toBe(true);
+  });
+
+  test('Correct OTP with name creates the child account and signs in', async () => {
+    const res = await request(app).post('/api/auth/otp/verify')
+      .send({ phone: authPhone, otp: signupOtp, name: 'OTP Child' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.isNew).toBe(true);
+    expect(res.body.data.token).toBeDefined();
+    expect(res.body.data.user.role).toBe('child');
+    expect(res.body.data.user.phone).toBe(authPhone);
+    expect(res.body.data.user.phoneVerified).toBe(true);
+    createdUserId = res.body.data.user._id;
+    sessionToken = res.body.data.token;
+  });
+
+  test('The OTP-issued session works', async () => {
+    const res = await request(app).get('/api/auth/me')
+      .set('Authorization', `Bearer ${sessionToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.user.name).toBe('OTP Child');
+  });
+
+  test('Existing child can OTP-login again (no name needed)', async () => {
+    const reqRes = await request(app).post('/api/auth/otp/request').send({ phone: authPhone });
+    expect(reqRes.status).toBe(201);
+    expect(reqRes.body.data.existingUser).toBe(true);
+
+    const res = await request(app).post('/api/auth/otp/verify')
+      .send({ phone: authPhone, otp: reqRes.body.data.demoOtp });
+    expect(res.status).toBe(200);
+    expect(res.body.data.isNew).toBe(false);
+    expect(res.body.data.user._id).toBe(createdUserId);
+  });
+
+  test('Re-request while a fresh code is pending is rate limited', async () => {
+    const first = await request(app).post('/api/auth/otp/request').send({ phone: authPhone });
+    expect(first.status).toBe(201);
+    const second = await request(app).post('/api/auth/otp/request').send({ phone: authPhone });
+    expect(second.status).toBe(429);
+  });
+
+  test('A parent number cannot be used for child OTP login', async () => {
+    const res = await request(app).post('/api/auth/otp/request').send({ phone: '+919888777666' });
+    expect(res.status).toBe(409);
+  });
+});

@@ -28,6 +28,25 @@ router.post(
   authController.login
 );
 
+// Phone + WhatsApp OTP authentication (children)
+router.post(
+  '/otp/request',
+  [body('phone').matches(/^\+?[1-9]\d{6,14}$/).withMessage('Valid phone number required (e.g. +919876543210)')],
+  validate,
+  authController.requestOtp
+);
+
+router.post(
+  '/otp/verify',
+  [
+    body('phone').matches(/^\+?[1-9]\d{6,14}$/).withMessage('Valid phone number required'),
+    body('otp').isLength({ min: 6, max: 6 }).isNumeric().withMessage('6-digit OTP required'),
+    body('name').optional().trim().isLength({ max: 100 }).withMessage('Name too long'),
+  ],
+  validate,
+  authController.verifyOtp
+);
+
 router.post('/logout', authenticate, authController.logout);
 router.get('/me', authenticate, authController.me);
 router.patch('/profile', authenticate, authController.updateProfile);

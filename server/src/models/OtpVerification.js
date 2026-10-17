@@ -14,17 +14,16 @@ const otpVerificationSchema = new mongoose.Schema(
     },
     purpose: {
       type: String,
-      enum: ['parent_link'],
+      enum: ['parent_link', 'child_login'],
       default: 'parent_link',
     },
     requestedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: true,
       index: true,
     },
     parentDetails: {
-      name: { type: String, required: true, trim: true, maxlength: 100 },
+      name: { type: String, trim: true, maxlength: 100 },
       relationship: { type: String, trim: true, maxlength: 50 },
     },
     attempts: { type: Number, default: 0 },

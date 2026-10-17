@@ -47,6 +47,21 @@ export function AuthProvider({ children }) {
     return user;
   };
 
+  // WhatsApp OTP auth (children): request code, then verify to sign in/up
+  const requestOtp = async (phone) => {
+    const res = await api.post('/auth/otp/request', { phone });
+    return res.data.data; // { phone, existingUser, demoOtp? }
+  };
+
+  const loginWithOtp = async ({ phone, otp, name }) => {
+    const res = await api.post('/auth/otp/verify', { phone, otp, name });
+    const { user, token } = res.data.data;
+    localStorage.setItem('cc_token', token);
+    localStorage.setItem('cc_user', JSON.stringify(user));
+    setUser(user);
+    return user;
+  };
+
   const logout = async () => {
     await api.post('/auth/logout').catch(() => {});
     localStorage.removeItem('cc_token');
@@ -55,7 +70,7 @@ export function AuthProvider({ children }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, requestOtp, loginWithOtp, logout }}>
       {children}
     </AuthContext.Provider>
   );
