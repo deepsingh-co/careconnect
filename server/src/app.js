@@ -25,6 +25,10 @@ const simulatorRoutes = require('./routes/simulator');
 
 const app = express();
 
+// Behind a reverse proxy (Render/Heroku/nginx) — needed for correct client IPs
+// in rate limiting and secure cookies.
+if (!config.isDev()) app.set('trust proxy', 1);
+
 // ── Security ──────────────────────────────────────────────────────────────────
 app.use(
   helmet({

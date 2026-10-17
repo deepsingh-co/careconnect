@@ -1,7 +1,11 @@
 import axios from 'axios';
 
+// In production (separate API domain, e.g. Render), set VITE_API_URL at build
+// time, e.g. VITE_API_URL=https://careconnect-api.onrender.com/api
+const baseURL = import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });

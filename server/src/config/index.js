@@ -25,6 +25,14 @@ const config = {
       phoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
       webhookVerifyToken: process.env.META_WHATSAPP_WEBHOOK_VERIFY_TOKEN || 'dev_verify_token',
       appSecret: process.env.META_WHATSAPP_APP_SECRET || '',
+      otpTemplate: {
+        // Pre-approved Meta Authentication template used to deliver OTPs.
+        // Business-initiated messages (like OTPs) REQUIRE a template on the
+        // Cloud API — freeform text is only allowed inside a 24h user window.
+        name: process.env.META_WHATSAPP_OTP_TEMPLATE || 'otp_verification',
+        lang: process.env.META_WHATSAPP_OTP_TEMPLATE_LANG || 'en_US',
+        hasButton: process.env.META_WHATSAPP_OTP_TEMPLATE_BUTTON === 'true',
+      },
     },
     twilio: {
       accountSid: process.env.TWILIO_ACCOUNT_SID || '',

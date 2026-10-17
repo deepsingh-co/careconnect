@@ -29,6 +29,7 @@ const ServiceProvider = require('../src/models/ServiceProvider');
 const ServiceBooking = require('../src/models/ServiceBooking');
 const Notification = require('../src/models/Notification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
+const whatsappService = require('../src/services/whatsappService');
 
 let parentToken, childToken, providerToken, adminToken;
 let parentId, childId, providerId, adminId;
@@ -834,5 +835,45 @@ describe('Add Parent via OTP', () => {
       .set('Authorization', `Bearer ${childToken}`)
       .send({ phone: parentPhone, otp: demoOtp });
     expect(res.status).toBe(404);
+  });
+
+  test('buildMetaOtpPayload creates a Meta authentication template payload', () => {
+    const payload = whatsappService.buildMetaOtpPayload('+919999000111', '123456', { hasButton: true });
+    expect(payload.messaging_product).toBe('whatsapp');
+    expect(payload.to).toBe('+919999000111');
+    expect(payload.type).toBe('template');
+    expect(payload.template.name).toBe('otp_verification');
+    expect(payload.template.language.code).toBe('en_US');
+    expect(payload.template.components[0].parameters[0].text).toBe('123456');
+    expect(payload.template.components[1].sub_type).toBe('url');
+    expect(payload.template.components[1].parameters[0].text).toBe('123456');
+  });
+
+  test('buildMetaOtpPayload omits button component by default', () => {
+    const payload = whatsappService.buildMetaOtpPayload('+919999000111', '123456', { hasButton: false });
+    expect(payload.template.components).toHaveLength(1);
+  });
+
+  test('Delivery failure returns 502 and does not leak any OTP', async () => {
+    const spy = jest.spyOn(whatsappService, 'sendOtp').mockRejectedValueOnce(new Error('graph api down'));
+    try {
+      const res = await request(app).post('/api/family/otp/request')
+        .set('Authorization', `Bearer ${childToken}`)
+        .send({ name: 'Fail Parent', phone: '+919777666555' });
+      expect(res.status).toBe(502);
+      expect(JSON.stringify(res.body)).not.toContain('demoOtp');
+      expect(res.body.data).toBeUndefined();
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  test('Demo mode OTP request still surfaces demoOtp for the simulator', async () => {
+    expect(whatsappService.isDemo).toBe(true);
+    const res = await request(app).post('/api/family/otp/request')
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ name: 'Demo Parent', phone: '+919666555444' });
+    expect(res.status).toBe(201);
+    expect(res.body.data.demoOtp).toMatch(/^\d{6}$/);
   });
 });

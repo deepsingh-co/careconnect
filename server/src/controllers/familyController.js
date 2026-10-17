@@ -177,11 +177,19 @@ exports.requestParentOtp = async (req, res, next) => {
       expiresAt: new Date(Date.now() + OTP_TTL_MS),
     });
 
-    const message =
-      `[CareConnect] Verification code: ${otp}\n` +
-      `Ye code ${req.user.name} ko apne CareConnect parivar se jodne ke liye hai. ` +
-      `10 minute me expire ho jayega — kisi ke saath share na karein.`;
-    await whatsappService.sendMessage(phone, message);
+    try {
+      await whatsappService.sendOtp(phone, otp);
+    } catch (sendErr) {
+      // Delivery failed — do not leave a pending OTP behind
+      record.status = 'expired';
+      await record.save();
+      console.error('[OTP] WhatsApp send failed:', sendErr.message);
+      return res.status(502).json({
+        success: false,
+        message:
+          'Could not send the WhatsApp OTP right now. Please check the number and try again in a moment.',
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -294,12 +302,14 @@ exports.verifyParentOtp = async (req, res, next) => {
     record.verifiedAt = new Date();
     await record.save();
 
-    // Welcome the parent on WhatsApp
-    await whatsappService.sendMessage(
-      phone,
-      `[CareConnect] Namaste ${parent.name}! ${req.user.name} ne aapko CareConnect parivar se joda hai. ` +
-      `Ab aap yahin WhatsApp par help maang sakte hain — jaise "khana chahiye" ya "doctor ke paas jana hai".`
-    );
+    // Welcome the parent on WhatsApp (best-effort — link is already active)
+    await whatsappService
+      .sendMessage(
+        phone,
+        `[CareConnect] Namaste ${parent.name}! ${req.user.name} ne aapko CareConnect parivar se joda hai. ` +
+        `Ab aap yahin WhatsApp par help maang sakte hain — jaise "khana chahiye" ya "doctor ke paas jana hai".`
+      )
+      .catch((e) => console.warn('[OTP] Welcome message failed:', e.message));
 
     // In-app notification for the child
     await Notification.create({
