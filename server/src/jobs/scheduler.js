@@ -9,6 +9,8 @@ const ReminderEvent = require('../models/ReminderEvent');
 const WellnessCheckin = require('../models/WellnessCheckin');
 const FamilyLink = require('../models/FamilyLink');
 const Notification = require('../models/Notification');
+const User = require('../models/User');
+const ParentProfile = require('../models/ParentProfile');
 const whatsappService = require('../services/whatsappService');
 const config = require('../config');
 
@@ -65,7 +67,6 @@ async function processDueReminders() {
 
         // WhatsApp (demo mode just logs)
         if (reminder.parent && reminder.parent.toString()) {
-          const { default: User } = require('../models/User');
           const parent = await User.findById(reminder.parent);
           if (parent?.phone) {
             const sent = await whatsappService.sendMessage(
@@ -141,7 +142,6 @@ async function scheduleCheckins() {
   const hhmm = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
   const dayStart = new Date(now); dayStart.setHours(0, 0, 0, 0);
 
-  const { default: ParentProfile } = require('../models/ParentProfile');
   const profiles = await ParentProfile.find();
 
   for (const p of profiles) {
