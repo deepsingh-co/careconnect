@@ -10,8 +10,8 @@ export function Button({ children, variant = 'primary', size = 'md', className =
     navy: 'bg-[#1e3a5f] text-white hover:bg-[#162d4a] focus:ring-[#1e3a5f]',
   };
   const sizes = {
-    sm: 'px-3 py-1.5 text-sm',
-    md: 'px-4 py-2 text-sm',
+    sm: 'px-3 py-2 text-sm',
+    md: 'px-4 py-2.5 text-sm',
     lg: 'px-6 py-3 text-base',
     xl: 'px-8 py-4 text-lg',
   };
@@ -38,7 +38,7 @@ export function Input({ label, error, className = '', ...props }) {
     <div className="w-full">
       {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <input
-        className={`w-full px-3 py-2 border rounded-lg text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent ${
+        className={`w-full px-3 py-2.5 border rounded-lg text-base sm:text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-teal-500 focus:border-transparent ${
           error ? 'border-red-400 bg-red-50' : 'border-gray-300 bg-white hover:border-gray-400'
         } ${className}`}
         {...props}
@@ -53,7 +53,7 @@ export function Select({ label, error, children, className = '', ...props }) {
     <div className="w-full">
       {label && <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>}
       <select
-        className={`w-full px-3 py-2 border rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 ${
+        className={`w-full px-3 py-2.5 border rounded-lg text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500 ${
           error ? 'border-red-400' : 'border-gray-300'
         } ${className}`}
         {...props}

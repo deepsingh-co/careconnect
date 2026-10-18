@@ -48,9 +48,9 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-4">
             <Logo size={40} />
             <span className="text-2xl font-bold text-[#1e3a5f]">CareConnect</span>
@@ -59,7 +59,7 @@ export default function RegisterPage() {
           <p className="text-gray-500 mt-1">Join to coordinate care for your family</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-8">
           {serverError && <Alert type="error" className="mb-4">{serverError}</Alert>}
 
           <form onSubmit={handleSubmit} className="space-y-4" noValidate>

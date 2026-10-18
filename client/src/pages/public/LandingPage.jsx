@@ -47,25 +47,25 @@ export default function LandingPage() {
       </header>
 
       {/* Hero */}
-      <section className="max-w-7xl mx-auto px-4 pt-16 pb-20 md:pt-24 md:pb-32">
+      <section className="max-w-7xl mx-auto px-4 pt-10 pb-14 md:pt-24 md:pb-32">
         <div className="max-w-3xl">
-          <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-sm font-medium mb-6">
+          <div className="inline-flex items-center gap-2 bg-teal-50 text-teal-700 px-3 py-1 rounded-full text-sm font-medium mb-5 md:mb-6">
             <MessageCircle size={16} />
             WhatsApp-first elderly care platform
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold text-[#1e3a5f] leading-tight mb-6">
+          <h1 className="text-3xl sm:text-4xl md:text-6xl font-bold text-[#1e3a5f] leading-tight mb-5 md:mb-6">
             Stay close to your parents, even from miles away.
           </h1>
-          <p className="text-lg text-gray-600 mb-8 leading-relaxed">
+          <p className="text-base sm:text-lg text-gray-600 mb-8 leading-relaxed">
             CareConnect helps elderly parents living independently while their children study or work in other cities.
             Parents use simple WhatsApp messages. Children use a shared dashboard. One secure platform for medication
             reminders, wellness check-ins, rides, food and household help.
           </p>
           <div className="flex flex-col sm:flex-row gap-3">
-            <Link to="/auth/register" className="bg-teal-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:bg-teal-700 flex items-center justify-center gap-2">
+            <Link to="/auth/register" className="bg-teal-600 text-white px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold hover:bg-teal-700 flex items-center justify-center gap-2">
               Create Free Account <ArrowRight size={20} />
             </Link>
-            <Link to="/auth/login" className="border-2 border-gray-300 text-gray-700 px-8 py-4 rounded-xl text-lg font-semibold hover:border-teal-500 hover:text-teal-700 flex items-center justify-center">
+            <Link to="/auth/login" className="border-2 border-gray-300 text-gray-700 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold hover:border-teal-500 hover:text-teal-700 flex items-center justify-center">
               Sign In
             </Link>
           </div>
@@ -73,16 +73,16 @@ export default function LandingPage() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className="bg-gray-50 py-20">
+      <section id="how-it-works" className="bg-gray-50 py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-[#1e3a5f] mb-12">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-8 md:mb-12">How It Works</h2>
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
             {howItWorks.map((item) => (
-              <div key={item.step} className="bg-white rounded-2xl p-8 border border-gray-200">
+              <div key={item.step} className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200">
                 <div className="w-12 h-12 bg-teal-100 text-teal-700 rounded-xl flex items-center justify-center text-xl font-bold mb-4">
                   {item.step}
                 </div>
-                <h3 className="text-xl font-semibold text-[#1e3a5f] mb-2">{item.title}</h3>
+                <h3 className="text-lg sm:text-xl font-semibold text-[#1e3a5f] mb-2">{item.title}</h3>
                 <p className="text-gray-600 leading-relaxed">{item.desc}</p>
               </div>
             ))}
@@ -91,10 +91,10 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section id="features" className="py-20">
+      <section id="features" className="py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-[#1e3a5f] mb-4">Everything Your Family Needs</h2>
-          <p className="text-center text-gray-600 max-w-2xl mx-auto mb-12">
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-4">Everything Your Family Needs</h2>
+          <p className="text-center text-gray-600 max-w-2xl mx-auto mb-8 md:mb-12">
             From medication reminders to household services — one platform that keeps families connected and parents independent.
           </p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -112,11 +112,11 @@ export default function LandingPage() {
       </section>
 
       {/* Safety & Trust */}
-      <section className="bg-[#1e3a5f] py-20">
+      <section className="bg-[#1e3a5f] py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <Shield size={40} className="text-teal-400 mx-auto mb-4" />
-            <h2 className="text-3xl font-bold text-white mb-4">Safety, Privacy & Trust</h2>
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Safety, Privacy & Trust</h2>
             <p className="text-gray-300 leading-relaxed mb-8">
               CareConnect is built with healthcare-grade privacy standards. Consent-based family sharing, encrypted data,
               role-based access, and full audit trails. We never sell data, never claim to replace medical professionals,
@@ -141,9 +141,9 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ */}
-      <section id="faq" className="py-20">
+      <section id="faq" className="py-12 md:py-20">
         <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-3xl font-bold text-center text-[#1e3a5f] mb-12">Frequently Asked Questions</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-8 md:mb-12">Frequently Asked Questions</h2>
           <div className="space-y-4">
             {faqs.map((f) => (
               <details key={f.q} className="bg-white rounded-xl border border-gray-200 p-5 group">
@@ -159,11 +159,11 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="bg-teal-600 py-16">
+      <section className="bg-teal-600 py-12 md:py-16">
         <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to stay connected?</h2>
+          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Ready to stay connected?</h2>
           <p className="text-teal-100 mb-8">Create your family account in minutes. No credit card required.</p>
-          <Link to="/auth/register" className="bg-white text-teal-700 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-teal-50 inline-flex items-center gap-2">
+          <Link to="/auth/register" className="bg-white text-teal-700 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold hover:bg-teal-50 inline-flex items-center gap-2">
             Get Started Free <ArrowRight size={20} />
           </Link>
         </div>

@@ -102,7 +102,7 @@ export default function DashboardLayout({ children, title }) {
 
         {/* Mobile nav */}
         {mobileOpen && (
-          <nav className="md:hidden border-t border-gray-100 bg-white">
+          <nav className="md:hidden border-t border-gray-100 bg-white shadow-lg max-h-[70vh] overflow-y-auto">
             <div className="px-2 py-2 flex flex-col">
               {links.map((link) => (
                 <NavLink
@@ -111,7 +111,7 @@ export default function DashboardLayout({ children, title }) {
                   end={link.to === '/dashboard'}
                   onClick={() => setMobileOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-medium ${
+                    `flex items-center gap-2 px-4 py-3.5 rounded-lg text-sm font-medium ${
                       isActive ? 'bg-teal-50 text-teal-700' : 'text-gray-600 hover:bg-gray-50'
                     }`
                   }
@@ -125,8 +125,8 @@ export default function DashboardLayout({ children, title }) {
         )}
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {title && <h1 className="text-2xl font-bold text-[#1e3a5f] mb-4">{title}</h1>}
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 py-4 sm:py-6">
+        {title && <h1 className="text-xl sm:text-2xl font-bold text-[#1e3a5f] mb-4">{title}</h1>}
         {children}
       </main>
     </div>

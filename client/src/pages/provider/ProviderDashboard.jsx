@@ -77,28 +77,28 @@ export default function ProviderDashboard() {
       )}
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
         {[
           { label: 'Available', value: available.length, color: 'bg-blue-50 text-blue-700' },
           { label: 'Active', value: active.length, color: 'bg-amber-50 text-amber-700' },
           { label: 'Completed', value: completed.length, color: 'bg-green-50 text-green-700' },
         ].map((s) => (
-          <Card key={s.label} className="p-4 text-center">
-            <p className={`text-3xl font-bold ${s.color.split(' ')[1]}`}>{s.value}</p>
-            <p className="text-sm text-gray-500 mt-1">{s.label}</p>
+          <Card key={s.label} className="p-3 sm:p-4 text-center">
+            <p className={`text-2xl sm:text-3xl font-bold ${s.color.split(' ')[1]}`}>{s.value}</p>
+            <p className="text-xs sm:text-sm text-gray-500 mt-1">{s.label}</p>
           </Card>
         ))}
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
         {[
           { key: 'available', label: `Available (${available.length})` },
           { key: 'active', label: `Active (${active.length})` },
           { key: 'completed', label: `Completed (${completed.length})` },
         ].map((t) => (
           <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+            className={`shrink-0 whitespace-nowrap px-4 py-2 rounded-lg text-sm font-medium ${tab === t.key ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
             {t.label}
           </button>
         ))}

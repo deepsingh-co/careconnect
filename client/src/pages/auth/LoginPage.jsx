@@ -98,9 +98,9 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-12">
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8 sm:py-12">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6 sm:mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-4">
             <Logo size={40} />
             <span className="text-2xl font-bold text-[#1e3a5f]">CareConnect</span>
@@ -109,7 +109,7 @@ export default function LoginPage() {
           <p className="text-gray-500 mt-1">Sign in to your account</p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-8">
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-8">
           {/* Mode tabs */}
           <div className="grid grid-cols-2 gap-1 p-1 bg-gray-100 rounded-xl mb-6">
             <button
