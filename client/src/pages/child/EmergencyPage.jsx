@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { Card, Button, Badge, EmptyState, Skeleton, Alert } from '../../components/ui';
 import api from '../../services/api';
-import { HeartPulse, AlertTriangle, Phone, Shield } from 'lucide-react';
+import { HeartPulse, AlertTriangle, Phone, Shield, Video, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const assistanceTypes = [
@@ -121,6 +121,16 @@ export default function EmergencyPage() {
               <span className="font-bold text-[#1e3a5f]">1091</span>
             </div>
           </div>
+          <a
+            href="https://esanjeevani.mohfw.gov.in/"
+            target="_blank"
+            rel="noreferrer"
+            className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-teal-50 border border-teal-200 text-sm font-medium text-teal-800 hover:bg-teal-100"
+          >
+            <Video size={16} className="shrink-0" />
+            <span className="flex-1">Free doctor video consult — eSanjeevani (Govt. of India)</span>
+            <ExternalLink size={14} className="shrink-0" />
+          </a>
         </Card>
       </div>
 

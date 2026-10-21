@@ -29,6 +29,7 @@ const ServiceProvider = require('../src/models/ServiceProvider');
 const ServiceBooking = require('../src/models/ServiceBooking');
 const Notification = require('../src/models/Notification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
+const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
 const whatsappService = require('../src/services/whatsappService');
 
 let parentToken, childToken, providerToken, adminToken;
@@ -383,6 +384,10 @@ describe('Service Bookings', () => {
     const providerIds = res.body.data.comparison.map((q) => q.providerId).sort();
     expect(providerIds).toEqual(['ola', 'rapido', 'uber']);
     expect(res.body.data.quotes.every((q) => q.isDemo === true)).toBe(true);
+    expect(res.body.data.handoffs.map((h) => h.providerId)).toEqual(['uber', 'ola', 'rapido', 'maps']);
+    const uber = res.body.data.handoffs.find((h) => h.providerId === 'uber');
+    expect(uber.url).toContain('https://m.uber.com/ul/?action=setPickup');
+    expect(uber.url).toContain('City%20Hospital');
   });
 
   test('Ride quotes require pickup and destination', async () => {
@@ -405,6 +410,8 @@ describe('Service Bookings', () => {
     expect(res.body.data.ride.isDemo).toBe(true);
     expect(res.body.data.ride.externalProvider).toBe('uber');
     expect(res.body.data.ride.demoBookingRef).toMatch(/^UBER-DEMO-/);
+    expect(res.body.data.handoff.providerId).toBe('uber');
+    expect(res.body.data.handoff.url).toContain('m.uber.com');
   });
 
   test('Food menu returns Zomato-style demo catalogue', async () => {
@@ -414,6 +421,7 @@ describe('Service Bookings', () => {
     expect(res.body.demoMode).toBe(true);
     expect(res.body.data.menu.length).toBeGreaterThan(0);
     expect(res.body.data.restaurants.length).toBeGreaterThan(0);
+    expect(res.body.data.handoffs.map((h) => h.providerId)).toEqual(['swiggy', 'zomato', 'maps']);
   });
 
   test('Food order stores Zomato-style demo reference', async () => {
@@ -617,6 +625,8 @@ describe('WhatsApp Simulator', () => {
     expect(r1.status).toBe(200);
     expect(r1.body.data.replies.length).toBeGreaterThan(0);
     expect(r1.body.data.replies[0].text.toLowerCase()).toContain('menu');
+    expect(r1.body.data.replies[0].text).toContain('swiggy.com');
+    expect(r1.body.data.replies[0].text).toContain('zomato.com');
 
     const r2 = await post('1');
     expect(r2.status).toBe(200);
@@ -630,10 +640,13 @@ describe('WhatsApp Simulator', () => {
 
     const r2 = await post('City Hospital');
     expect(r2.body.data.replies[0].text).toContain('Ride options');
+    expect(r2.body.data.replies[0].text).toContain('m.uber.com');
+    expect(r2.body.data.replies[0].text).toContain('book.olacabs.com');
 
     const r3 = await post('1');
     expect(r3.body.data.replies[0].text).toContain('Ride booked');
     expect(r3.body.data.replies[0].text).toMatch(/-DEMO-/);
+    expect(r3.body.data.replies[0].text).toMatch(/rapido\.bike|m\.uber\.com|book\.olacabs\.com/);
   });
 
   test('Home service message creates a demo booking reply', async () => {
@@ -762,6 +775,45 @@ describe('Demo Integration Adapters', () => {
     expect(d).toBe(rideProviders.estimateDistanceKm('Home', 'Hospital'));
     expect(d).toBeGreaterThanOrEqual(4);
     expect(d).toBeLessThanOrEqual(18.1);
+  });
+});
+
+// ─── Real-World Handoff Links ─────────────────────────────────────────────────
+describe('Real-World Handoff Links', () => {
+  test('rideHandoffs returns Uber, Ola, Rapido and Maps links', () => {
+    const handoffs = rideHandoffs({ pickup: 'Home', destination: 'City Hospital' });
+    expect(handoffs.map((h) => h.providerId)).toEqual(['uber', 'ola', 'rapido', 'maps']);
+  });
+
+  test('Uber link pre-fills the encoded dropoff address', () => {
+    const uber = rideHandoffFor('uber', { pickup: 'Home', destination: 'City Hospital' });
+    expect(uber.url).toBe(
+      'https://m.uber.com/ul/?action=setPickup&pickup=my_location&dropoff[formatted_address]=City%20Hospital'
+    );
+  });
+
+  test('Ola link uses the documented web deep-link format', () => {
+    const ola = rideHandoffFor('ola', { pickup: 'Home', destination: 'City Hospital' });
+    expect(ola.url).toBe('https://book.olacabs.com/?drop_name=City%20Hospital');
+  });
+
+  test('Google Maps directions link encodes both origin and destination', () => {
+    const url = mapsDirectionsUrl({ origin: 'Home', destination: 'City Hospital' });
+    expect(url).toBe(
+      'https://www.google.com/maps/dir/?api=1&destination=City%20Hospital&travelmode=driving&origin=Home'
+    );
+  });
+
+  test('rideHandoffFor returns null for an unknown provider', () => {
+    expect(rideHandoffFor('unknown', { destination: 'X' })).toBeNull();
+  });
+
+  test('foodHandoffs links to Swiggy, Zomato and Maps nearby', () => {
+    const handoffs = foodHandoffs();
+    expect(handoffs.map((h) => h.providerId)).toEqual(['swiggy', 'zomato', 'maps']);
+    expect(handoffs[0].url).toBe('https://www.swiggy.com/');
+    expect(handoffs[1].url).toBe('https://www.zomato.com/');
+    expect(handoffs[2].url).toContain('google.com/maps/search');
   });
 });
 

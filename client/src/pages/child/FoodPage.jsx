@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { Card, Button, Badge, StatusBadge, EmptyState, Skeleton, Alert, Input } from '../../components/ui';
 import api from '../../services/api';
-import { UtensilsCrossed, Plus, Minus, Trash2, ShoppingBag } from 'lucide-react';
+import { UtensilsCrossed, Plus, Minus, Trash2, ShoppingBag, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function FoodPage() {
   const [menu, setMenu] = useState([]);
+  const [handoffs, setHandoffs] = useState([]);
   const [orders, setOrders] = useState([]);
   const [cart, setCart] = useState({});
   const [loading, setLoading] = useState(true);
@@ -24,6 +25,7 @@ export default function FoodPage() {
         api.get('/services/orders'),
       ]);
       setMenu(m.status === 'fulfilled' ? m.value.data.data.menu : []);
+      setHandoffs(m.status === 'fulfilled' ? m.value.data.data.handoffs || [] : []);
       setOrders(o.status === 'fulfilled' ? o.value.data.data.orders : []);
     } catch { toast.error('Failed to load menu'); }
     finally { setLoading(false); }
@@ -68,8 +70,27 @@ export default function FoodPage() {
   return (
     <DashboardLayout title="Food & Grocery">
       <Alert type="demo" className="mb-4">
-        DEMO MODE: Zomato-style demo catalogue. No real order will be placed with any restaurant or delivery service.
+        Demo catalogue — no real order is placed here. For real food delivery, order directly on Swiggy / Zomato using the links below.
       </Alert>
+
+      {handoffs.length > 0 && (
+        <Card className="p-4 mb-4 border-teal-200 bg-teal-50/40">
+          <p className="text-sm font-semibold text-[#1e3a5f] mb-2">Order real food — provider app mein kholein</p>
+          <div className="flex flex-wrap gap-2">
+            {handoffs.map((h) => (
+              <a
+                key={h.providerId}
+                href={h.url}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-white border border-teal-300 text-teal-800 rounded-lg hover:bg-teal-100"
+              >
+                <ExternalLink size={14} /> {h.label}
+              </a>
+            ))}
+          </div>
+        </Card>
+      )}
 
       {cartItems.length > 0 && (
         <div className="fixed bottom-4 right-4 z-50">

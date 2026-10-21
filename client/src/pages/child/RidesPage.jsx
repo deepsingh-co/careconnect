@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { Card, Button, Input, Badge, StatusBadge, EmptyState, Skeleton, Alert } from '../../components/ui';
 import api from '../../services/api';
-import { Car, Plus, MapPin, Navigation, Clock, IndianRupee, CheckCircle2 } from 'lucide-react';
+import { Car, Plus, MapPin, Navigation, Clock, IndianRupee, CheckCircle2, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function RidesPage() {
@@ -13,6 +13,7 @@ export default function RidesPage() {
   const [form, setForm] = useState({ pickup: '', destination: '', date: '', time: '', specialInstructions: '' });
   const [errors, setErrors] = useState({});
   const [quotes, setQuotes] = useState([]);
+  const [handoffs, setHandoffs] = useState([]);
   const [selected, setSelected] = useState(null);
   const [quotesLoading, setQuotesLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -47,6 +48,7 @@ export default function RidesPage() {
         params: { pickup: form.pickup, destination: form.destination },
       });
       setQuotes(res.data.data.comparison || []);
+      setHandoffs(res.data.data.handoffs || []);
       setSelected(null);
       setStep('quotes');
     } catch (err) {
@@ -85,13 +87,16 @@ export default function RidesPage() {
     setStep('form');
     setSelected(null);
     setQuotes([]);
+    setHandoffs([]);
     setForm({ pickup: '', destination: '', date: '', time: '', specialInstructions: '' });
   }
+
+  const selectedHandoff = selected ? handoffs.find((h) => h.providerId === selected.providerId) : null;
 
   return (
     <DashboardLayout title="Ride Booking">
       <Alert type="demo" className="mb-4">
-        DEMO MODE: Ola, Uber and Rapido have no public booking API. Prices shown are simulated comparisons and bookings are demo references — no real driver is dispatched.
+        Prices are simulated estimates (no public fare API). Submitting here creates a demo request — to book a real ride, use the provider app links (Uber / Ola / Rapido / Google Maps).
       </Alert>
 
       <div className="flex justify-end mb-4">
@@ -151,6 +156,24 @@ export default function RidesPage() {
                   </button>
                 ))}
               </div>
+              {handoffs.length > 0 && (
+                <div className="border border-teal-200 bg-teal-50/50 rounded-xl p-4 mb-4">
+                  <p className="text-sm font-semibold text-[#1e3a5f] mb-2">Book a real ride (live fares in provider app)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {handoffs.map((h) => (
+                      <a
+                        key={h.providerId}
+                        href={h.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-white border border-teal-300 text-teal-800 rounded-lg hover:bg-teal-100"
+                      >
+                        <ExternalLink size={14} /> {h.label}
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )}
               <div className="flex gap-2">
                 <Button variant="secondary" onClick={() => setStep('form')}>Edit Details</Button>
               </div>
@@ -168,6 +191,16 @@ export default function RidesPage() {
                 {form.specialInstructions && <p className="text-gray-500"><strong>Notes:</strong> {form.specialInstructions}</p>}
               </div>
               <Alert type="demo" className="mb-4">This is a simulated booking with a demo reference. No real driver has been assigned.</Alert>
+              {selectedHandoff && (
+                <a
+                  href={selectedHandoff.url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-teal-800 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 mb-4 hover:bg-teal-100"
+                >
+                  <ExternalLink size={16} /> {selectedHandoff.label} — book the real ride
+                </a>
+              )}
               <div className="flex gap-2">
                 <Button onClick={handleConfirm} loading={submitting}>Confirm & Submit</Button>
                 <Button variant="secondary" onClick={() => setStep('quotes')}>Change Provider</Button>

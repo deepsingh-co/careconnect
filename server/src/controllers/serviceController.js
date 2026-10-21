@@ -6,6 +6,7 @@ const Notification = require('../models/Notification');
 const FamilyLink = require('../models/FamilyLink');
 const { resolveParentId } = require('../utils/authHelpers');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../services/integrationAdapters');
+const { rideHandoffs, rideHandoffFor, foodHandoffs } = require('../services/handoffLinks');
 
 // ── Service Categories ────────────────────────────────────────────────────────
 const SERVICE_CATEGORIES = [
@@ -189,9 +190,15 @@ exports.getRideQuotes = async (req, res, next) => {
     const comparison = rideProviders.getComparison({ pickup, destination });
     res.json({
       success: true,
-      data: { quotes, comparison, distanceKm: rideProviders.estimateDistanceKm(pickup, destination) },
+      data: {
+        quotes,
+        comparison,
+        distanceKm: rideProviders.estimateDistanceKm(pickup, destination),
+        handoffs: rideHandoffs({ pickup, destination }),
+      },
       demoMode: true,
-      notice: 'DEMO prices from Ola / Uber / Rapido are simulated. No real fare API is available.',
+      notice:
+        'Prices are simulated estimates. For a real ride, use the handoff links to book directly in the Ola / Uber / Rapido app.',
     });
   } catch (err) {
     next(err);
@@ -244,7 +251,14 @@ exports.createRide = async (req, res, next) => {
       data: { rideId: ride._id },
     });
 
-    res.status(201).json({ success: true, data: { ride }, demoMode: true });
+    res.status(201).json({
+      success: true,
+      data: {
+        ride,
+        handoff: rideHandoffFor(booking.providerId, { pickup, destination }),
+      },
+      demoMode: true,
+    });
   } catch (err) {
     next(err);
   }
@@ -318,9 +332,10 @@ exports.getMenu = async (req, res) => {
   const menu = foodProviders.getMenu();
   res.json({
     success: true,
-    data: { menu, restaurants: foodProviders.restaurants },
+    data: { menu, restaurants: foodProviders.restaurants, handoffs: foodHandoffs() },
     demoMode: true,
-    notice: 'This is a demo catalogue. No real order will be placed.',
+    notice:
+      'Demo catalogue — no real order is placed here. To order real food, use the handoff links to order on Swiggy / Zomato.',
   });
 };
 

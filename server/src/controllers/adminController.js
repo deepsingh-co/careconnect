@@ -221,12 +221,16 @@ exports.getIntegrationStatus = async (req, res) => {
       rideProvider: {
         status: 'demo_mode',
         providers: ['Ola', 'Uber', 'Rapido'],
-        notice: 'No public ride-hailing API available. Price comparison & bookings are simulated (DEMO refs).',
+        notice:
+          'No public ride-hailing API available. Price comparison is simulated (DEMO refs); real bookings are handed off via deep links that open the provider app with the trip pre-filled.',
+        handoff: 'enabled',
       },
       foodProvider: {
         status: 'demo_mode',
         providers: ['Zomato-style demo catalogue'],
-        notice: 'No public consumer food-ordering API available. Orders are simulated (DEMO refs).',
+        notice:
+          'No public consumer food-ordering API available. Orders are simulated (DEMO refs); real ordering is handed off to Swiggy / Zomato with direct links.',
+        handoff: 'enabled',
       },
       householdProviders: {
         status: 'demo_mode',

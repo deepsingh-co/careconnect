@@ -16,6 +16,7 @@ const ReminderEvent = require('../models/ReminderEvent');
 const FamilyLink = require('../models/FamilyLink');
 const Notification = require('../models/Notification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../services/integrationAdapters');
+const { rideHandoffs, rideHandoffFor, foodHandoffs } = require('../services/handoffLinks');
 
 // ── Webhook Verification (Meta only) ─────────────────────────────────────────
 exports.verify = (req, res) => {
@@ -399,9 +400,9 @@ async function handlePendingState(session, parentUser, from, text) {
       from,
       t(
         lang,
-        `✅ Ride booked (DEMO): ${booking.providerName} ${booking.vehicleLabel} to ${destination}.\nFare: ₹${booking.price} (~${booking.etaMin} min away).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Your family has been informed to verify.`,
-        `✅ Ride book ho gayi (DEMO): ${booking.providerName} ${booking.vehicleLabel}, ${destination}.\nKiraya: ₹${booking.price} (~${booking.etaMin} min).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Parivaar ko verify karne ke liye bata diya.`,
-        `✅ Ride booked (DEMO)! ${booking.providerName} ${booking.vehicleLabel} → ${destination}. ₹${booking.price}, ~${booking.etaMin} min. Ref: ${booking.ref}. Family ko verify karne bola hai.`
+        `✅ Ride booked (DEMO): ${booking.providerName} ${booking.vehicleLabel} to ${destination}.\nFare: ₹${booking.price} (~${booking.etaMin} min away).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Your family has been informed to verify.\n\nFor a real ride right now, book here:\n${rideHandoffFor(booking.providerId, { pickup, destination }).url}`,
+        `✅ Ride book ho gayi (DEMO): ${booking.providerName} ${booking.vehicleLabel}, ${destination}.\nKiraya: ₹${booking.price} (~${booking.etaMin} min).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Parivaar ko verify karne ke liye bata diya.\n\nAsli ride turant book karne ke liye yahan kholein:\n${rideHandoffFor(booking.providerId, { pickup, destination }).url}`,
+        `✅ Ride booked (DEMO)! ${booking.providerName} ${booking.vehicleLabel} → ${destination}. ₹${booking.price}, ~${booking.etaMin} min. Ref: ${booking.ref}. Family ko verify karne bola hai.\n\nReal ride abhi book karne ke liye:\n${rideHandoffFor(booking.providerId, { pickup, destination }).url}`
       )
     );
     return true;
@@ -476,13 +477,17 @@ async function sendRideQuotes(session, from, destination) {
   await session.save();
 
   const lines = comparison.map((q, i) => `${i + 1}. ${q.providerName} ${q.vehicleLabel} — ₹${q.price} (~${q.etaMin} min)`);
+  const linkLines = rideHandoffs({ pickup, destination })
+    .filter((h) => h.providerId !== 'rapido')
+    .map((h) => `${h.providerName}: ${h.url}`)
+    .join('\n');
   await whatsappService.sendMessage(
     from,
     t(
       lang,
-      `Ride options to ${destination} (DEMO prices — Ola / Uber / Rapido comparison):\n${lines.join('\n')}\n\nReply with a number to book your ride.`,
-      `Aapki ride ke options — ${destination} (DEMO prices, Ola / Uber / Rapido):\n${lines.join('\n')}\n\nNumber bhejein book karne ke liye.`,
-      `Ride options (${destination}) — DEMO price compare:\n${lines.join('\n')}\n\nNumber reply karein book karne ke liye.`
+      `Ride options to ${destination} (DEMO prices — Ola / Uber / Rapido comparison):\n${lines.join('\n')}\n\nReply with a number to book your ride.\n\nBook a real ride in the provider's app:\n${linkLines}`,
+      `Aapki ride ke options — ${destination} (DEMO prices, Ola / Uber / Rapido):\n${lines.join('\n')}\n\nNumber bhejein book karne ke liye.\n\nAsli ride ke liye provider app mein book karein:\n${linkLines}`,
+      `Ride options (${destination}) — DEMO price compare:\n${lines.join('\n')}\n\nNumber reply karein book karne ke liye.\n\nReal ride ke liye yahan book karein:\n${linkLines}`
     )
   );
 }
@@ -498,13 +503,17 @@ async function sendFoodMenu(session, from) {
   await session.save();
 
   const lines = menu.map((m, i) => `${i + 1}. ${m.name} — ₹${m.price}`);
+  const linkLines = foodHandoffs()
+    .filter((h) => h.providerId !== 'maps')
+    .map((h) => `${h.providerName}: ${h.url}`)
+    .join('\n');
   await whatsappService.sendMessage(
     from,
     t(
       lang,
-      `Here is today's menu (DEMO — Zomato-style catalogue):\n${lines.join('\n')}\n\nReply with item numbers (e.g. 1, 3) to place your order.`,
-      `Aaj ka menu (DEMO):\n${lines.join('\n')}\n\nItem numbers bhejein order ke liye (jaise 1, 3).`,
-      `Aaj ka menu (DEMO):\n${lines.join('\n')}\n\nNumber bhejo order karne ke liye, jaise: 1,3`
+      `Here is today's menu (DEMO — Zomato-style catalogue):\n${lines.join('\n')}\n\nReply with item numbers (e.g. 1, 3) to place your order.\n\nFor real food delivery:\n${linkLines}`,
+      `Aaj ka menu (DEMO):\n${lines.join('\n')}\n\nItem numbers bhejein order ke liye (jaise 1, 3).\n\nAsli food order ke liye:\n${linkLines}`,
+      `Aaj ka menu (DEMO):\n${lines.join('\n')}\n\nNumber bhejo order karne ke liye, jaise: 1,3\n\nReal food delivery ke liye:\n${linkLines}`
     )
   );
 }
