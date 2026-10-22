@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowRight, MessageCircle, HeartPulse, Car, UtensilsCrossed, Users, Shield, Phone, Pill, Calendar, Home } from 'lucide-react';
 import Logo from '../../components/Logo';
+import AnimatedFlow from '../../components/AnimatedFlow';
 
 const features = [
   { icon: Pill, title: 'Medicine Reminders', desc: 'WhatsApp reminders with one-tap acknowledgement. Family gets notified if a dose is missed.' },
@@ -9,12 +10,6 @@ const features = [
   { icon: UtensilsCrossed, title: 'Food & Grocery', desc: 'Order home-style meals and groceries through a simple WhatsApp message.' },
   { icon: Home, title: 'Household Services', desc: 'Cleaning, gardening, car wash — verified local helpers at your doorstep.' },
   { icon: Users, title: 'Family Coordination', desc: 'One shared dashboard. Everyone stays informed without constant phone calls.' },
-];
-
-const howItWorks = [
-  { step: '1', title: 'Parents use WhatsApp', desc: 'Send a message or voice note in Hindi, English or Hinglish. The AI understands and helps.' },
-  { step: '2', title: 'Children use the dashboard', desc: 'View medication status, bookings, alerts and wellness check-ins from any device.' },
-  { step: '3', title: 'Workers get assignments', desc: 'Verified local service providers receive, accept and complete jobs through their portal.' },
 ];
 
 const faqs = [
@@ -75,18 +70,11 @@ export default function LandingPage() {
       {/* How it works */}
       <section id="how-it-works" className="bg-gray-50 py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-8 md:mb-12">How It Works</h2>
-          <div className="grid md:grid-cols-3 gap-6 md:gap-8">
-            {howItWorks.map((item) => (
-              <div key={item.step} className="bg-white rounded-2xl p-6 sm:p-8 border border-gray-200">
-                <div className="w-12 h-12 bg-teal-100 text-teal-700 rounded-xl flex items-center justify-center text-xl font-bold mb-4">
-                  {item.step}
-                </div>
-                <h3 className="text-lg sm:text-xl font-semibold text-[#1e3a5f] mb-2">{item.title}</h3>
-                <p className="text-gray-600 leading-relaxed">{item.desc}</p>
-              </div>
-            ))}
-          </div>
+          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-3">How It Works</h2>
+          <p className="text-center text-gray-600 max-w-2xl mx-auto mb-8 md:mb-12">
+            One WhatsApp message from a parent — and the whole family is quietly in sync.
+          </p>
+          <AnimatedFlow />
         </div>
       </section>
 
@@ -182,8 +170,11 @@ export default function LandingPage() {
           <div>
             <h4 className="text-white font-semibold mb-3">Contact</h4>
             <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2"><Phone size={14} /> Support: +91 8000-CARE (demo)</li>
-              <li>📧 <a href="mailto:support@careconnect.health" className="hover:text-white">support@careconnect.health</a></li>
+              <li className="flex items-center gap-2">
+                <Phone size={14} />
+                <a href="tel:+919653203776" className="hover:text-white">+91 96532 03776</a>
+              </li>
+              <li>📧 <a href="mailto:deepsinghcode@gmail.com" className="hover:text-white">deepsinghcode@gmail.com</a></li>
               <li>📍 Jaipur, Rajasthan, India</li>
               <li><Link to="/contact" className="text-teal-300 hover:text-white">Contact page →</Link></li>
             </ul>
