@@ -1,8 +1,10 @@
 import { useState } from 'react';
-import { Mail, MapPin, Clock, Send, ShieldAlert, ExternalLink } from 'lucide-react';
+import { Mail, Phone, MapPin, Clock, Send, ShieldAlert, ExternalLink } from 'lucide-react';
 import InfoPageLayout, { Section } from './InfoPageLayout';
 
-const CONTACT_EMAIL = 'support@careconnect.health';
+const CONTACT_EMAIL = 'deepsinghcode@gmail.com';
+const CONTACT_PHONE_DISPLAY = '+91 96532 03776';
+const CONTACT_PHONE_TEL = '+919653203776';
 
 const topics = [
   'General question',
@@ -35,7 +37,7 @@ export default function ContactPage() {
       subtitle="Questions, feedback, or need help getting your family set up? We are here."
     >
       <Section title="Support details">
-        <div className="grid sm:grid-cols-3 gap-3">
+        <div className="grid sm:grid-cols-2 gap-3">
           <a
             href={`mailto:${CONTACT_EMAIL}`}
             className="border border-gray-200 rounded-xl p-4 hover:border-teal-400 transition-colors"
@@ -43,6 +45,14 @@ export default function ContactPage() {
             <Mail size={20} className="text-teal-600 mb-2" />
             <p className="font-semibold text-[#1e3a5f] text-sm">Email us</p>
             <p className="text-sm text-gray-600 mt-1 break-all">{CONTACT_EMAIL}</p>
+          </a>
+          <a
+            href={`tel:${CONTACT_PHONE_TEL}`}
+            className="border border-gray-200 rounded-xl p-4 hover:border-teal-400 transition-colors"
+          >
+            <Phone size={20} className="text-teal-600 mb-2" />
+            <p className="font-semibold text-[#1e3a5f] text-sm">Call us</p>
+            <p className="text-sm text-gray-600 mt-1">{CONTACT_PHONE_DISPLAY}</p>
           </a>
           <div className="border border-gray-200 rounded-xl p-4">
             <Clock size={20} className="text-teal-600 mb-2" />
@@ -114,7 +124,8 @@ export default function ContactPage() {
           </button>
           <p className="text-xs text-gray-500">
             This opens your email app with the message pre-filled. If nothing opens, email us directly at{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a>.
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a> or call{' '}
+            <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-teal-700 hover:underline">{CONTACT_PHONE_DISPLAY}</a>.
           </p>
           {opened && (
             <p className="text-sm text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">

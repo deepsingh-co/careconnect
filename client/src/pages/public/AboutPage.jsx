@@ -81,7 +81,7 @@ export default function AboutPage() {
       <Section title="Get in touch">
         <p>
           We would love to hear from your family. Visit the <Link to="/contact" className="text-teal-700 hover:underline">contact page</Link>{' '}
-          or write to <a href="mailto:support@careconnect.health" className="text-teal-700 hover:underline">support@careconnect.health</a>.
+          or write to <a href="mailto:deepsinghcode@gmail.com" className="text-teal-700 hover:underline">deepsinghcode@gmail.com</a>.
         </p>
       </Section>
     </InfoPageLayout>

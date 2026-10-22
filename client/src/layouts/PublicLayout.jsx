@@ -121,7 +121,8 @@ export default function PublicLayout() {
                 <li><Link to="/about" className="hover:text-white">About Us</Link></li>
                 <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
                 <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
-                <li><a href="mailto:support@careconnect.health" className="hover:text-white">support@careconnect.health</a></li>
+                <li><a href="mailto:deepsinghcode@gmail.com" className="hover:text-white">deepsinghcode@gmail.com</a></li>
+                <li><a href="tel:+919653203776" className="hover:text-white">+91 96532 03776</a></li>
               </ul>
             </div>
           </div>

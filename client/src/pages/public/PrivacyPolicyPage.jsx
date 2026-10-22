@@ -2,7 +2,8 @@ import { Link } from 'react-router-dom';
 import InfoPageLayout, { Section } from './InfoPageLayout';
 
 const UPDATED = '22 October 2026';
-const CONTACT_EMAIL = 'support@careconnect.health';
+const CONTACT_EMAIL = 'deepsinghcode@gmail.com';
+const CONTACT_PHONE = '+91 96532 03776';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -124,7 +125,8 @@ export default function PrivacyPolicyPage() {
       <Section title="12. Contact us">
         <p>
           Questions about this policy or your data? Write to{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a> or use the{' '}
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a>, call{' '}
+          <a href="tel:+919653203776" className="text-teal-700 hover:underline">{CONTACT_PHONE}</a>, or use the{' '}
           <Link to="/contact" className="text-teal-700 hover:underline">contact page</Link>. We aim to respond within 1–2
           business days.
         </p>

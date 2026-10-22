@@ -47,7 +47,8 @@ export default function InfoPageLayout({ title, subtitle, updated, children }) {
             <Link to="/about" className="hover:text-white">About Us</Link>
             <Link to="/contact" className="hover:text-white">Contact</Link>
             <Link to="/privacy" className="hover:text-white">Privacy Policy</Link>
-            <a href="mailto:support@careconnect.health" className="hover:text-white">support@careconnect.health</a>
+            <a href="mailto:deepsinghcode@gmail.com" className="hover:text-white">deepsinghcode@gmail.com</a>
+            <a href="tel:+919653203776" className="hover:text-white">+91 96532 03776</a>
           </nav>
           <p className="text-xs text-gray-500">
             © {new Date().getFullYear()} CareConnect. CareConnect does not diagnose, treat or provide emergency services —
