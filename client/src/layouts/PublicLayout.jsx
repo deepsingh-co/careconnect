@@ -1,7 +1,7 @@
 import { Outlet, Link, useLocation } from 'react-router-dom';
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { Logo } from '../components/Logo';
+import Logo from '../components/Logo';
 
 const navLinks = [
   { to: '/#how-it-works', label: 'How It Works' },
@@ -118,9 +118,10 @@ export default function PublicLayout() {
             <div>
               <div className="font-semibold mb-3 text-sm uppercase tracking-wide text-gray-400">Legal & Contact</div>
               <ul className="space-y-2 text-sm text-gray-300">
-                <li><a href="mailto:hello@careconnect.example" className="hover:text-white">hello@careconnect.example</a></li>
-                <li><span className="text-gray-400">Privacy Policy (demo)</span></li>
-                <li><span className="text-gray-400">Terms of Service (demo)</span></li>
+                <li><Link to="/about" className="hover:text-white">About Us</Link></li>
+                <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
+                <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
+                <li><a href="mailto:support@careconnect.health" className="hover:text-white">support@careconnect.health</a></li>
               </ul>
             </div>
           </div>
