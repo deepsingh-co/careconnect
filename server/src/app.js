@@ -98,9 +98,14 @@ const start = async () => {
   const { startJobs } = require('./jobs/scheduler');
   startJobs();
 
+  const wa = require('./services/whatsappService').getStatus();
+  const waLabel = wa.isDemo
+    ? `DEMO MODE${wa.configured ? '' : ` — missing ${wa.missing.join(', ')}`}`
+    : `LIVE (${wa.provider})`;
+
   app.listen(config.port, () => {
     console.log(`[Server] CareConnect backend running on port ${config.port} [${config.env}]`);
-    console.log(`[Server] WhatsApp: ${config.whatsapp.provider || 'DEMO MODE'}`);
+    console.log(`[Server] WhatsApp: ${waLabel}`);
     console.log(`[Server] AI: ${config.ai.provider || 'Deterministic fallback'}`);
   });
 };

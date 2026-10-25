@@ -7,6 +7,7 @@ const FamilyLink = require('../models/FamilyLink');
 const AuditLog = require('../models/AuditLog');
 const EmergencyAlert = require('../models/EmergencyAlert');
 const config = require('../config');
+const whatsappService = require('../services/whatsappService');
 const { getConnectionStatus } = require('../config/database');
 
 exports.getUsers = async (req, res, next) => {
@@ -190,6 +191,24 @@ exports.assignBooking = async (req, res, next) => {
   }
 };
 
+/** Aggregated WhatsApp status for the admin integrations screen. */
+const buildWhatsappStatus = () => {
+  const wa = whatsappService.getStatus();
+  return {
+    status: wa.isDemo ? 'demo_mode' : 'configured',
+    provider: wa.provider === 'demo' ? null : wa.provider,
+    mode: wa.mode,
+    preference: wa.preference,
+    configured: wa.configured,
+    missing: wa.missing,
+    notice: wa.isDemo
+      ? wa.configured
+        ? 'DEMO MODE is switched on. Live credentials are present but no real WhatsApp messages are being sent.'
+        : 'DEMO MODE: No real WhatsApp messages will be sent.'
+      : null,
+  };
+};
+
 exports.getIntegrationStatus = async (req, res) => {
   const dbStatus = getConnectionStatus();
 
@@ -200,11 +219,7 @@ exports.getIntegrationStatus = async (req, res) => {
         status: dbStatus.connected ? 'connected' : 'unavailable',
         label: dbStatus.label,
       },
-      whatsapp: {
-        status: config.whatsapp.provider ? 'configured' : 'demo_mode',
-        provider: config.whatsapp.provider || null,
-        notice: config.whatsapp.provider ? null : 'DEMO MODE: No real WhatsApp messages will be sent.',
-      },
+      whatsapp: buildWhatsappStatus(),
       ai: {
         status: config.ai.provider ? 'configured' : 'fallback_mode',
         provider: config.ai.provider || null,
@@ -239,6 +254,29 @@ exports.getIntegrationStatus = async (req, res) => {
       },
     },
   });
+};
+
+/**
+ * POST /api/admin/whatsapp/mode  { mode: 'demo' | 'live' }
+ * Flips the WhatsApp sending mode at runtime (admin toggle in the UI).
+ */
+exports.setWhatsappMode = async (req, res, next) => {
+  try {
+    const { mode } = req.body || {};
+    const status = whatsappService.setMode(mode);
+
+    AuditLog.create({
+      actor: req.user._id,
+      actorRole: 'admin',
+      action: `admin.whatsapp.mode.${status.mode}`,
+      resource: 'WhatsApp',
+      details: { mode: status.mode, provider: status.provider },
+    }).catch(() => {}); // audit must never break the toggle itself
+
+    res.json({ success: true, data: { whatsapp: status } });
+  } catch (err) {
+    next(err);
+  }
 };
 
 exports.getAuditLogs = async (req, res, next) => {

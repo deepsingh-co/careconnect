@@ -1,22 +1,119 @@
 /**
  * WhatsApp Provider Abstraction
  * Supports: Meta Cloud API | Twilio | Demo Mode
+ *
+ * MODE SWITCH
+ *  - "demo"  → messages are simulated, nothing leaves the server.
+ *  - "live"  → messages go out through the configured provider.
+ * The admin UI can flip modes at runtime (POST /api/admin/whatsapp/mode);
+ * the choice is persisted in server/.whatsapp-mode.json so it survives restarts.
+ * When no explicit choice has been made, the server stays in demo mode until
+ * the provider credentials are complete.
  */
+const fs = require('fs');
+const path = require('path');
 const config = require('../config');
+
+const MODE_FILE = path.resolve(__dirname, '../../.whatsapp-mode.json');
+
+/** Env values still holding the "PASTE_..._HERE" template count as missing. */
+const isRealValue = (value) => Boolean(value) && !/^PASTE_/i.test(String(value));
 
 class WhatsappService {
   constructor() {
     this.provider = config.whatsapp.provider;
-    this.isDemo = !this.provider;
     this._capture = null;
+    this._mode = this._readModeFile();
+  }
+
+  /** Credentials the active provider still needs before it can go live. */
+  get missingCredentials() {
+    if (!this.provider) return ['WHATSAPP_PROVIDER'];
+
+    if (this.provider === 'meta') {
+      const missing = [];
+      if (!isRealValue(config.whatsapp.meta.token)) missing.push('META_WHATSAPP_TOKEN');
+      if (!isRealValue(config.whatsapp.meta.phoneNumberId)) missing.push('META_WHATSAPP_PHONE_NUMBER_ID');
+      return missing;
+    }
+
+    if (this.provider === 'twilio') {
+      const missing = [];
+      if (!isRealValue(config.whatsapp.twilio.accountSid)) missing.push('TWILIO_ACCOUNT_SID');
+      if (!isRealValue(config.whatsapp.twilio.authToken)) missing.push('TWILIO_AUTH_TOKEN');
+      return missing;
+    }
+
+    return [`WHATSAPP_PROVIDER (unsupported value: ${this.provider})`];
+  }
+
+  /** True when every credential the provider needs is present. */
+  get configured() {
+    return this.missingCredentials.length === 0;
+  }
+
+  /** True when outgoing messages must be simulated. */
+  get isDemo() {
+    if (this._mode === 'demo') return true;
+    return !this.configured;
+  }
+
+  /** The mode actually in effect right now: 'demo' | 'live'. */
+  get mode() {
+    return this.isDemo ? 'demo' : 'live';
   }
 
   getStatus() {
     return {
       provider: this.provider || 'demo',
+      mode: this.mode,
+      preference: this._mode || 'auto',
       isDemo: this.isDemo,
-      configured: !this.isDemo,
+      configured: this.configured,
+      missing: this.missingCredentials,
     };
+  }
+
+  /**
+   * Switch between demo and live mode.
+   * Going live is refused (400) while credentials are incomplete, so the UI can
+   * tell the operator exactly which env vars are still missing.
+   */
+  setMode(nextMode) {
+    if (nextMode !== 'demo' && nextMode !== 'live') {
+      const error = new Error('Mode must be "demo" or "live".');
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (nextMode === 'live' && !this.configured) {
+      const error = new Error(
+        `Cannot switch to live mode: set ${this.missingCredentials.join(', ')} in server/.env first.`
+      );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    this._mode = nextMode;
+    this._writeModeFile(nextMode);
+    return this.getStatus();
+  }
+
+  _readModeFile() {
+    try {
+      const parsed = JSON.parse(fs.readFileSync(MODE_FILE, 'utf8'));
+      return parsed && (parsed.mode === 'demo' || parsed.mode === 'live') ? parsed.mode : null;
+    } catch {
+      return null; // no saved preference → auto (demo until credentials exist)
+    }
+  }
+
+  _writeModeFile(mode) {
+    try {
+      fs.writeFileSync(MODE_FILE, `${JSON.stringify({ mode }, null, 2)}\n`);
+    } catch (err) {
+      console.warn(`[WhatsApp] Could not persist mode to ${MODE_FILE}: ${err.message}`);
+    }
   }
 
   /**

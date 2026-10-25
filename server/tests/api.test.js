@@ -5,8 +5,13 @@
 process.env.NODE_ENV = 'test';
 process.env.JWT_SECRET = 'test_secret_key_for_automated_tests_only_64_chars_minimum';
 process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:27017/careconnect_test';
+// The suite makes more than the default 100 requests / 15 min from 127.0.0.1,
+// which would otherwise start returning 429 partway through the run.
+process.env.RATE_LIMIT_MAX = process.env.RATE_LIMIT_MAX || '10000';
 
 const request = require('supertest');
+const fs = require('fs');
+const path = require('path');
 const bcrypt = require('bcryptjs');
 
 // Import app before models are used
@@ -31,6 +36,7 @@ const Notification = require('../src/models/Notification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
 const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
 const whatsappService = require('../src/services/whatsappService');
+const config = require('../src/config');
 
 let parentToken, childToken, providerToken, adminToken;
 let parentId, childId, providerId, adminId;
@@ -544,7 +550,8 @@ describe('Notifications', () => {
 // ─── Webhook (Demo Mode) ──────────────────────────────────────────────────────
 describe('WhatsApp Webhook', () => {
   test('Webhook verification endpoint responds', async () => {
-    const res = await request(app).get('/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=dev_verify_token&hub.challenge=test123');
+    const verifyToken = config.whatsapp.meta.webhookVerifyToken;
+    const res = await request(app).get(`/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=${encodeURIComponent(verifyToken)}&hub.challenge=test123`);
     expect(res.status).toBe(200);
   });
 
@@ -681,6 +688,67 @@ describe('Admin', () => {
     const res = await request(app).patch(`/api/admin/users/${target._id}/toggle`)
       .set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
+  });
+});
+
+// ─── Admin · WhatsApp mode toggle ────────────────────────────────────────────
+describe('Admin · WhatsApp mode toggle', () => {
+  const MODE_FILE = path.resolve(__dirname, '../.whatsapp-mode.json');
+  const readModeFile = () => {
+    try { return fs.readFileSync(MODE_FILE, 'utf8'); } catch { return null; }
+  };
+  let modeFileSnapshot;
+
+  beforeAll(() => { modeFileSnapshot = readModeFile(); });
+
+  afterAll(() => {
+    if (modeFileSnapshot === null) {
+      try { fs.unlinkSync(MODE_FILE); } catch { /* nothing to clean up */ }
+    } else {
+      try { fs.writeFileSync(MODE_FILE, modeFileSnapshot); } catch { /* best effort */ }
+    }
+    whatsappService._mode = null; // restore the "auto" preference for later suites
+  });
+
+  test('Admin can switch WhatsApp to demo mode', async () => {
+    const res = await request(app).post('/api/admin/whatsapp/mode')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ mode: 'demo' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.whatsapp.mode).toBe('demo');
+    expect(whatsappService.isDemo).toBe(true);
+    expect(res.body.data.whatsapp).toHaveProperty('missing');
+  });
+
+  test('Going live is refused while credentials are missing', async () => {
+    if (whatsappService.configured) return; // this env has real credentials — nothing to assert
+
+    const res = await request(app).post('/api/admin/whatsapp/mode')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ mode: 'live' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toMatch(/Cannot switch to live mode/);
+    expect(whatsappService.isDemo).toBe(true);
+  });
+
+  test('An unknown mode value is rejected', async () => {
+    const res = await request(app).post('/api/admin/whatsapp/mode')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ mode: 'production' });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/demo/);
+  });
+
+  test('Non-admins cannot switch the mode', async () => {
+    const res = await request(app).post('/api/admin/whatsapp/mode')
+      .set('Authorization', `Bearer ${providerToken}`)
+      .send({ mode: 'demo' });
+
+    expect(res.status).toBe(403);
   });
 });
 

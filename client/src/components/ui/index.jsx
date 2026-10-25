@@ -65,6 +65,29 @@ export function Select({ label, error, children, className = '', ...props }) {
   );
 }
 
+export function Toggle({ checked = false, onChange, disabled = false, 'aria-label': ariaLabel, ...props }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={() => onChange && onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-teal-500 disabled:opacity-50 disabled:cursor-not-allowed ${
+        checked ? 'bg-teal-600' : 'bg-gray-300'
+      }`}
+      {...props}
+    >
+      <span
+        className={`inline-block h-5 w-5 rounded-full bg-white shadow transform transition-transform ${
+          checked ? 'translate-x-5' : 'translate-x-0.5'
+        }`}
+      />
+    </button>
+  );
+}
+
 export function Card({ children, className = '', ...props }) {
   return (
     <div

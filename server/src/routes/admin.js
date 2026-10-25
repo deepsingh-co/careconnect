@@ -16,6 +16,7 @@ router.patch('/bookings/:id/assign', adminController.assignBooking);
 router.get('/rides', adminController.getRides);
 router.get('/orders', adminController.getOrders);
 router.get('/integrations', adminController.getIntegrationStatus);
+router.post('/whatsapp/mode', adminController.setWhatsappMode);
 router.get('/audit-logs', adminController.getAuditLogs);
 
 module.exports = router;
