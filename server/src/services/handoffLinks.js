@@ -82,10 +82,74 @@ function foodHandoffs() {
   ];
 }
 
+/**
+ * 10-minute quick-commerce handoffs for daily needs (milk, chini, poha…).
+ * The search term is pre-filled so the parent just taps "Add to cart".
+ *   - Blinkit web search:   blinkit.com/s/<query>
+ *   - Zepto web search:     zeptonow.com/search?query=<query>
+ *   - Instamart web search: swiggy.com/instamart/search?query=<query>
+ */
+function quickCommerceHandoffs(query) {
+  const q = enc(query || 'grocery');
+  return [
+    {
+      providerId: 'blinkit',
+      providerName: 'Blinkit',
+      label: 'Order on Blinkit (~10 min)',
+      url: `https://blinkit.com/s/${q}`,
+    },
+    {
+      providerId: 'zepto',
+      providerName: 'Zepto',
+      label: 'Order on Zepto',
+      url: `https://www.zeptonow.com/search?query=${q}`,
+    },
+    {
+      providerId: 'instamart',
+      providerName: 'Swiggy Instamart',
+      label: 'Order on Instamart',
+      url: `https://www.swiggy.com/instamart/search?query=${q}`,
+    },
+  ];
+}
+
+/**
+ * Online-pharmacy handoffs for medicine orders. Search pre-filled with the
+ * medicine name(s) the parent mentioned.
+ *   - Apollo Pharmacy: apollopharmacy.in/search-medicines?name=<query>
+ *   - Tata 1mg:        1mg.com/search/all?name=<query>
+ *   - PharmEasy:       pharmeasy.in/search/all?name=<query>
+ */
+function medicineHandoffs(query) {
+  const q = enc(query || 'medicine');
+  return [
+    {
+      providerId: 'apollo',
+      providerName: 'Apollo Pharmacy',
+      label: 'Order on Apollo Pharmacy',
+      url: `https://www.apollopharmacy.in/search-medicines?name=${q}`,
+    },
+    {
+      providerId: 'tata1mg',
+      providerName: 'Tata 1mg',
+      label: 'Order on 1mg',
+      url: `https://www.1mg.com/search/all?name=${q}`,
+    },
+    {
+      providerId: 'pharmeasy',
+      providerName: 'PharmEasy',
+      label: 'Order on PharmEasy',
+      url: `https://www.pharmeasy.in/search/all?name=${q}`,
+    },
+  ];
+}
+
 module.exports = {
   mapsDirectionsUrl,
   mapsNearbyUrl,
   rideHandoffs,
   rideHandoffFor,
   foodHandoffs,
+  quickCommerceHandoffs,
+  medicineHandoffs,
 };

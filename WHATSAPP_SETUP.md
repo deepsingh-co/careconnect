@@ -70,6 +70,25 @@ intents, conversation state, orders and family notifications behave identically
 across channels. Phone numbers are normalised automatically
 (`919876543210@s.whatsapp.net` → `+919876543210`).
 
+### What the bot understands (incl. Hinglish)
+
+The intent engine is tuned for **Hinglish** — Hindi typed in Latin script
+(`khana chahiye`, `dudh bhejo`, `dawai mangwa do`), including common spelling
+variants (khaana/khana, cheeni/chini, sabjee/sabji, dawai/dawa).
+
+| Say this | Bot does this |
+|---|---|
+| `khana chahiye`, `bhookh lagi hai` | Food menu + Swiggy/Zomato links |
+| `ride chahiye`, `hospital jana hai` | Ola/Uber/Rapido comparison + booking |
+| `dudh chahiye`, `sugar aur poha chahiye` | **10-minute quick commerce** — items extracted, Blinkit / Zepto / Swiggy Instamart links with the **search pre-filled** |
+| `dawai order karni hai`, `dolo 650 chahiye` | **Medicine ordering** — Apollo Pharmacy / 1mg / PharmEasy links with the medicine pre-searched, plus a prescription-safety note |
+| `dawai yaad dilana`, `medicine reminder` | Medicine reminder flow (distinct from ordering) |
+| `safai karni hai`, `madad kariye` | Home service / emergency handling |
+
+Every grocery/medicine request also **notifies the linked family** so a child
+can help complete the order. The bot never claims an order was placed — it
+hands off to the provider's own app/site (they have no public consumer APIs).
+
 ### Production notes
 
 - Production is **live-only**: demo mode is removed (`setMode('demo')` → 400,

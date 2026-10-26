@@ -45,6 +45,7 @@ const { rideProviders, foodProviders, homeServiceProviders } = require('../src/s
 const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
 const whatsappService = require('../src/services/whatsappService');
 const webhookController = require('../src/controllers/webhookController');
+const aiService = require('../src/services/aiService');
 const ConversationSession = require('../src/models/ConversationSession');
 const config = require('../src/config');
 
@@ -559,6 +560,13 @@ describe('Notifications', () => {
 
 // ─── Webhook (Demo Mode) ──────────────────────────────────────────────────────
 describe('WhatsApp Webhook', () => {
+  // The HTTP webhook endpoint responds 200 immediately and finishes processing
+  // in the background — a leftover multi-step state (e.g. collecting_ride)
+  // from a previous test would otherwise swallow this test's message.
+  beforeEach(async () => {
+    await ConversationSession.updateMany({}, { $set: { state: 'idle', pendingIntent: null, pendingData: null } });
+  });
+
   test('Webhook verification endpoint responds', async () => {
     const verifyToken = config.whatsapp.meta.webhookVerifyToken;
     const res = await request(app).get(`/api/webhooks/whatsapp?hub.mode=subscribe&hub.verify_token=${encodeURIComponent(verifyToken)}&hub.challenge=test123`);
@@ -626,10 +634,107 @@ describe('WhatsApp Webhook', () => {
     const session = await ConversationSession.findOne({ whatsappNumber: stranger });
     expect(session).toBeNull(); // not even a conversation session is opened
   });
+
+  test('Hinglish meal request still maps to food_order', () => {
+    const d = aiService.deterministicDetect('bhookh lagi hai, kuch khana hai');
+    expect(d.intent).toBe('food_order');
+    expect(d.language).toBe('hinglish');
+  });
+
+  test('Hinglish spelling variants are understood (cheeni / sabjee / dawai)', () => {
+    expect(aiService.deterministicDetect('cheeni chahiye').intent).toBe('grocery_order');
+    expect(aiService.deterministicDetect('sabjee bhej do').intent).toBe('grocery_order');
+    expect(aiService.deterministicDetect('dawai ka order karni hai').intent).toBe('medicine_order');
+  });
+
+  test('Daily needs are detected as grocery_order, not food_order', () => {
+    expect(aiService.deterministicDetect('dudh aur poha chahiye').intent).toBe('grocery_order');
+    expect(aiService.deterministicDetect('I need milk and sugar').intent).toBe('grocery_order');
+  });
+
+  test('Medicine ordering vs medicine reminder are distinguished by the verb', () => {
+    expect(aiService.deterministicDetect('dawai mangwa do').intent).toBe('medicine_order');
+    expect(aiService.deterministicDetect('dolo 650 order karni hai').intent).toBe('medicine_order');
+    expect(aiService.deterministicDetect('dawai yaad dilana').intent).toBe('medicine_reminder');
+    expect(aiService.deterministicDetect('dawai ka reminder lagao').intent).toBe('medicine_reminder');
+  });
+
+  test('Parent asking for daily items gets 10-minute quick-commerce links', async () => {
+    // Fresh parent (own number + own session) so no leftover conversation
+    // state from earlier tests can interfere.
+    const reg = await request(app).post('/api/auth/register').send({
+      name: 'Grocery Parent', email: 'grocery.parent@test.local', password: 'TestPass123', role: 'parent', phone: '+919999999993',
+    });
+    expect(reg.status).toBe(201);
+    const parentPhone = '+919999999993';
+    await FamilyLink.create({ parent: reg.body.data.user._id, child: childId, status: 'active', consentGivenAt: new Date() });
+
+    const capture = whatsappService.startCapture();
+    try {
+      await webhookController.handleIncomingMessage({
+        from: parentPhone,
+        id: `grocery_${Date.now()}`,
+        text: 'dudh aur poha chahiye',
+        type: 'text',
+      });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    const reply = capture.find((c) => c.to === parentPhone);
+    expect(reply).toBeTruthy();
+    expect(reply.text).toContain('blinkit.com/s/');
+    expect(reply.text).toContain('zeptonow.com/search?query=');
+    expect(reply.text).toContain('instamart');
+    expect(reply.text).toContain('Milk'); // extracted item pre-fills the search
+    expect(reply.text).toContain('Poha');
+
+    // Family is alerted so a child can help complete the order.
+    const familyMsg = capture.find((c) => c.to === '+919999999991');
+    expect(familyMsg).toBeTruthy();
+    expect(familyMsg.text).toContain('Milk, Poha');
+  });
+
+  test('Parent asking for medicine gets pharmacy links + prescription note + family alert', async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      name: 'Medicine Parent', email: 'medicine.parent@test.local', password: 'TestPass123', role: 'parent', phone: '+919999999994',
+    });
+    expect(reg.status).toBe(201);
+    const parentPhone = '+919999999994';
+    await FamilyLink.create({ parent: reg.body.data.user._id, child: childId, status: 'active', consentGivenAt: new Date() });
+
+    const capture = whatsappService.startCapture();
+    try {
+      await webhookController.handleIncomingMessage({
+        from: parentPhone,
+        id: `med_${Date.now()}`,
+        text: 'dolo 650 order karni hai',
+        type: 'text',
+      });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    const reply = capture.find((c) => c.to === parentPhone);
+    expect(reply).toBeTruthy();
+    expect(reply.text).toContain('apollopharmacy.in/search-medicines?name=');
+    expect(reply.text).toContain('1mg.com/search/all?name=');
+    expect(reply.text).toContain('pharmeasy.in/search/all?name=');
+    expect(reply.text).toContain('Paracetamol 650'); // canonical name for "dolo"
+    expect(reply.text.toLowerCase()).toContain('prescription'); // safety line is always included
+
+    const familyMsg = capture.find((c) => c.to === '+919999999991');
+    expect(familyMsg).toBeTruthy();
+    expect(familyMsg.text).toContain('Paracetamol 650');
+  });
 });
 
 // ─── WhatsApp Simulator (Demo) ───────────────────────────────────────────────
 describe('WhatsApp Simulator', () => {
+  // See the WhatsApp Webhook describe: keep states clean between tests.
+  beforeEach(async () => {
+    await ConversationSession.updateMany({}, { $set: { state: 'idle', pendingIntent: null, pendingData: null } });
+  });
   // Dedicated parent so webhook tests (same phone number) cannot leak session state
   let simParentToken;
 

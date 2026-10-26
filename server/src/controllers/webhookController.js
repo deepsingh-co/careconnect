@@ -16,7 +16,8 @@ const ReminderEvent = require('../models/ReminderEvent');
 const FamilyLink = require('../models/FamilyLink');
 const Notification = require('../models/Notification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../services/integrationAdapters');
-const { rideHandoffs, rideHandoffFor, foodHandoffs } = require('../services/handoffLinks');
+const { rideHandoffs, rideHandoffFor, foodHandoffs, quickCommerceHandoffs, medicineHandoffs } = require('../services/handoffLinks');
+const { extractDailyNeeds, extractMedicines } = require('../services/itemCatalogs');
 
 // ── Webhook Verification (Meta only) ─────────────────────────────────────────
 exports.verify = (req, res) => {
@@ -175,7 +176,7 @@ async function handleIncomingMessage(msg) {
   const messageText = text || '';
 
   // Check for emergency keywords first (highest priority)
-  const emergencyKeywords = ['help', 'emergency', 'sos', 'madad', 'dard', '112', 'fell', 'gira'];
+  const emergencyKeywords = ['help', 'emergency', 'sos', 'madad', 'dard', '112', 'fell', 'gira', 'bachao', 'bachaa'];
   const isEmergency = emergencyKeywords.some((kw) => messageText.toLowerCase().includes(kw));
 
   if (isEmergency) {
@@ -255,6 +256,14 @@ async function routeIntent(intent, session, parentUser, from, originalText) {
 
     case 'food_order':
       await sendFoodMenu(session, from);
+      break;
+
+    case 'grocery_order':
+      await handleGroceryOrder(session, parentUser, from, originalText, lang);
+      break;
+
+    case 'medicine_order':
+      await handleMedicineOrder(session, parentUser, from, originalText, lang);
       break;
 
     case 'home_cleaning':
@@ -545,8 +554,77 @@ async function sendFoodMenu(session, from) {
   );
 }
 
-/** Notify all linked family members (Notification + WhatsApp if number present). */
-async function notifyChildren(parentUser, title, body, type, data) {
+/**
+ * Daily needs (10-minute quick commerce): "dudh aur poha chahiye" → extract the
+ * items from the Hinglish message and hand off to Blinkit / Zepto / Instamart
+ * with the search pre-filled. Family is told so a child can help complete it.
+ */
+async function handleGroceryOrder(session, parentUser, from, text, lang) {
+  const items = extractDailyNeeds(text);
+  const query = items.length ? items.slice(0, 3).join(' ') : 'grocery';
+  const links = quickCommerceHandoffs(query);
+  const linkLines = links.map((h) => `${h.providerName}: ${h.url}`).join('\n');
+  const itemList = items.length ? items.join(', ') : null;
+
+  if (parentUser) {
+    await notifyChildren(
+      parentUser,
+      'Daily items needed via WhatsApp',
+      itemList
+        ? `Your parent asked for daily items via WhatsApp: ${itemList}. 10-minute delivery links (Blinkit / Zepto / Instamart) were shared with them — please help complete the order if needed.`
+        : `Your parent asked for help with daily household items via WhatsApp. Quick-commerce links (Blinkit / Zepto / Instamart) were shared with them — please check in on them.`,
+      'booking_new',
+      {}
+    );
+  }
+
+  await whatsappService.sendMessage(
+    from,
+    t(
+      lang,
+      `${itemList ? `Items samajh aa gaye: ${itemList}.` : ''}10-minute delivery apps (your search is already filled in):\n${linkLines}\n\nJust open a link and complete the order — your family has been informed in case you need help.`,
+      `${itemList ? `Ye samajh aaya: ${itemList}.` : ''}10-minute delivery apps — search pehle se bhara hua hai:\n${linkLines}\n\nBas link kholein aur order poori karein. Family ko bata diya hai zaroorat ho to madad karenge.`,
+      `${itemList ? `Items: ${itemList}.` : ''}10-min apps (search pre-filled):\n${linkLines}\n\nLink kholein aur order complete karein. Family ko bata diya hai agar madad chahiye.`
+    )
+  );
+}
+
+/**
+ * Medicine ordering: "dolo 650 order karni hai" → hand off to Apollo Pharmacy /
+ * 1mg / PharmEasy with the medicine pre-searched. Prescription safety line is
+ * always included; family is notified so a child can verify the order.
+ */
+async function handleMedicineOrder(session, parentUser, from, text, lang) {
+  const meds = extractMedicines(text);
+  const query = meds.length ? meds.slice(0, 3).join(' ') : 'medicine';
+  const links = medicineHandoffs(query);
+  const linkLines = links.map((h) => `${h.providerName}: ${h.url}`).join('\n');
+  const medList = meds.length ? meds.join(', ') : null;
+
+  if (parentUser) {
+    await notifyChildren(
+      parentUser,
+      'Medicine order needed via WhatsApp',
+      medList
+        ? `Your parent asked to order medicines via WhatsApp: ${medList}. Pharmacy links (Apollo / 1mg / PharmEasy) were shared with them — please verify against their prescription and help complete the order.`
+        : `Your parent asked for help ordering medicines via WhatsApp. Pharmacy links (Apollo / 1mg / PharmEasy) were shared with them — please check which medicine they need and help them order.`,
+      'booking_new',
+      {}
+    );
+  }
+
+  await whatsappService.sendMessage(
+    from,
+    t(
+      lang,
+      `${medList ? `Medicine samajh aa gayi: ${medList}.` : ''}Order karne ke liye yeh pharmacy apps kholein (search pehle se bhara hua hai):\n${linkLines}\n\n⚠️ Apne doctor ki prescription ke hi according dawai lein — apps par prescription upload karne ka option bhi hai. Family ko bata diya hai madad ke liye.`,
+      `${medList ? `Ye dawai samajh aayi: ${medList}.` : ''}Order ke liye yeh pharmacy apps kholein (search pehle se bhara hai):\n${linkLines}\n\n⚠️ Doctor ki prescription ke according hi lein — apps par prescription upload kar sakte hain. Family ko bata diya hai madad ke liye.`,
+      `${medList ? `Dawai: ${medList}.` : ''}Pharmacy apps (search pre-filled):\n${linkLines}\n\n⚠️ Sirf doctor ki prescription se dawai lein — apps par upload ka option hai. Family ko bata diya hai.`
+    )
+  );
+}
+
+/** Notify all linked family members (Notification + WhatsApp if number present). */async function notifyChildren(parentUser, title, body, type, data) {
   if (!parentUser) return;
   const links = await FamilyLink.find({ parent: parentUser._id, status: 'active' }).populate('child', 'name phone');
   for (const link of links) {
@@ -611,9 +689,9 @@ function getMsg(key, lang) {
       hinglish: 'Support team se connect kar raha hun. Woh jaldi reply karenge.',
     },
     unknown: {
-      en: 'I did not quite understand. You can say: "Book a ride", "Order food", "Book cleaning", or "I need help".',
-      hi: 'Samjha nahi. Aap keh sakte hain: "Ride chahiye", "Khana mangao", "Safai karni hai", ya "Help chahiye".',
-      hinglish: 'Samjha nahi. Try karein: "Ride book karo", "Khana order karo", ya "Help chahiye".',
+      en: 'I did not quite understand. You can say: "Book a ride", "Order food", "I need milk" (daily items in 10 min), "Order medicines", "Book cleaning", or "I need help".',
+      hi: 'Samjha nahi. Aap keh sakte hain: "Ride chahiye", "Khana mangao", "Dudh chahiye" (10 minute mein), "Dawai order karni hai", "Safai karni hai", ya "Help chahiye".',
+      hinglish: 'Samjha nahi. Try karein: "Ride book karo", "Khana order karo", "Dudh chahiye", "Dawai order karni hai", ya "Help chahiye".',
     },
   };
 

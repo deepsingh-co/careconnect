@@ -4,7 +4,7 @@ import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import { Send, LogOut } from 'lucide-react';
 
-const QUICK_REPLIES = ['Khana chahiye', 'Ride chahiye', 'Safai karani hai', 'Dawai ka reminder lagao', 'Madad chahiye'];
+const QUICK_REPLIES = ['Khana chahiye', 'Ride chahiye', 'Dudh chahiye', 'Dawai order karni hai', 'Safai karani hai', 'Madad chahiye'];
 
 function nowTime() {
   return new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
@@ -17,7 +17,7 @@ export default function WhatsAppConnect() {
     {
       id: 'welcome',
       from: 'bot',
-      text: `Namaste ${user?.name?.split(' ')[0] || ''} ji 🙏\nMain aapka CareConnect assistant hoon.\n\nYahan WhatsApp ki tarah message bhejein — jaise:\n• "Khana chahiye"\n• "Doctor ke paas jaana hai kal"\n• "Safai karani hai"`,
+      text: `Namaste ${user?.name?.split(' ')[0] || ''} ji 🙏\nMain aapka CareConnect assistant hoon.\n\nYahan WhatsApp ki tarah message bhejein — jaise:\n• "Khana chahiye"\n• "Dudh aur poha chahiye" (10 minute mein delivery)\n• "Dawai order karni hai"\n• "Doctor ke paas jaana hai kal"\n• "Safai karani hai"`,
       time: nowTime(),
     },
   ]);
