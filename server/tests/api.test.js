@@ -12,6 +12,10 @@ process.env.RATE_LIMIT_MAX = process.env.RATE_LIMIT_MAX || '10000';
 // baileys after linking a number). Pin the provider off so this suite always
 // asserts the demo/no-provider behaviour — identical to CI, which has no .env.
 process.env.WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || '';
+// Same for the demo/live mode file: keep the suite's setMode() calls on a
+// scratch file so a real dev channel stays live after tests run.
+process.env.WHATSAPP_MODE_FILE =
+  process.env.WHATSAPP_MODE_FILE || `${require('os').tmpdir()}/careconnect-test-whatsapp-mode.json`;
 
 const request = require('supertest');
 const fs = require('fs');

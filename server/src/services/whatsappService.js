@@ -20,7 +20,11 @@ const path = require('path');
 const config = require('../config');
 const baileysService = require('./baileysService');
 
-const MODE_FILE = path.resolve(__dirname, '../../.whatsapp-mode.json');
+// Where the demo/live preference is persisted. Overridable so the test suite
+// can point at a scratch file instead of clobbering a real linked channel's
+// mode (running `npm test` once must not silently flip a live bot back to demo).
+const MODE_FILE =
+  process.env.WHATSAPP_MODE_FILE || path.resolve(__dirname, '../../.whatsapp-mode.json');
 
 /** Env values still holding the "PASTE_..._HERE" template count as missing. */
 const isRealValue = (value) => Boolean(value) && !/^PASTE_/i.test(String(value));
