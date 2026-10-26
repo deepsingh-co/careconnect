@@ -47,17 +47,32 @@ export default function AdminIntegrationsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  // Baileys (WhatsApp Web): keep the link state + QR fresh while on this page.
-  // WhatsApp refreshes the QR periodically, so polling picks up new codes too.
+  // Baileys (WhatsApp Web): poll the link state + QR while pairing (WhatsApp
+  // refreshes the QR periodically). Once linked we STOP polling — idle 3s
+  // polls would otherwise burn the API rate limit for a page left open.
   useEffect(() => {
     if (waProvider !== 'baileys') return undefined;
     let active = true;
+    let linked = false;
+    let timer = null;
+
     const load = () => api.get('/admin/whatsapp/channel')
-      .then((res) => { if (active) setChannel(res.data.data); })
+      .then((res) => {
+        if (!active) return;
+        const next = res.data.data || {};
+        setChannel(next);
+        if (next.state === 'open' && timer) {
+          linked = true;
+          clearInterval(timer);
+          timer = null;
+        }
+      })
       .catch(() => {});
+
     load();
-    const timer = setInterval(load, 3000);
-    return () => { active = false; clearInterval(timer); };
+    timer = setInterval(() => { if (!linked) load(); }, 3000);
+
+    return () => { active = false; if (timer) clearInterval(timer); };
   }, [waProvider]);
 
   async function relinkChannel() {
