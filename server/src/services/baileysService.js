@@ -106,15 +106,50 @@ function scheduleReconnect() {
 
 /** Route one inbound WhatsApp Web message into the shared chatbot pipeline. */
 async function handleIncoming(m) {
-  if (!inboundHandler) return;
-  if (!m || !m.message || (m.key && m.key.fromMe)) return;
+  if (!m || !m.message) return;
 
-  const jid = (m.key && m.key.remoteJid) || '';
+  const fromMe = Boolean(m.key && m.key.fromMe);
+  const text = extractText(m.message);
+  const rawJid = (m.key && m.key.remoteJid) || '';
+
+  // WhatsApp privacy addressing: chats can arrive as `<lid>@lid` instead of
+  // `<number>@s.whatsapp.net`. The phone jid rides along as remoteJidAlt when
+  // present; otherwise ask Baileys' LID mapping store to resolve it.
+  let jid = rawJid;
+  const alt = (m.key && m.key.remoteJidAlt) || '';
+  if (!jid.endsWith('@s.whatsapp.net') && alt.endsWith('@s.whatsapp.net')) {
+    jid = alt;
+  }
+  if (jid.endsWith('@lid')) {
+    try {
+      const pn =
+        sock && sock.signalRepository ? await sock.signalRepository.lidMapping.getPNForLID(jid) : null;
+      const digits = String(pn || '').replace(/\D/g, '');
+      if (digits) jid = `${digits}@s.whatsapp.net`;
+    } catch (err) {
+      console.warn(`[Baileys] LID→number lookup failed for ${jid}: ${err.message}`);
+    }
+  }
+
+  // One-line trace for every live message so operators can see what arrived
+  // and why something was skipped (reply-only bot = fromMe must be ignored).
+  if (!fromMe && rawJid && rawJid !== 'status@broadcast') {
+    console.log(`[Baileys] ← ${rawJid}${rawJid !== jid ? ` → ${jid}` : ''}${text !== null ? `: ${String(text).slice(0, 80)}` : ' (no text)'}`);
+  }
+
+  if (!inboundHandler) {
+    console.warn('[Baileys] No inbound handler wired — message dropped.');
+    return;
+  }
+  if (fromMe) return; // our own outgoing traffic — never feed it back in
+
   // Only direct 1:1 chats on the phone-number domain (skip groups/status/LIDs).
-  if (!jid.endsWith('@s.whatsapp.net')) return;
+  if (!jid.endsWith('@s.whatsapp.net')) {
+    console.warn(`[Baileys] Skipping — could not resolve sender to a phone number: ${rawJid}`);
+    return;
+  }
 
   const from = jidToPhone(jid);
-  const text = extractText(m.message);
   // Media/protocol noise without a caption is ignored — the bot stays reply-only.
   if (!from || text === null) return;
 

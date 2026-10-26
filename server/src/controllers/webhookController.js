@@ -146,6 +146,15 @@ async function handleIncomingMessage(msg) {
     return;
   }
 
+  // ONLY verified parents are answered. Anyone else messaging the bot is
+  // ignored silently (no session, no reply) — this is both the product rule
+  // and the ban-safety pattern for the unofficial WhatsApp channel.
+  const parentUser = await User.findOne({ phone: from, role: 'parent' });
+  if (!parentUser) {
+    console.log(`[WhatsApp] Ignored inbound message from unregistered number ${from} — only verified parents get replies.`);
+    return;
+  }
+
   // Deduplication: skip if we've seen this message ID
   const session = await ConversationSession.findOneAndUpdate(
     { whatsappNumber: from },
@@ -160,11 +169,8 @@ async function handleIncomingMessage(msg) {
 
   session.processedMessageIds.push(id);
   session.lastMessageAt = new Date();
+  session.parent = parentUser._id;
   await session.save();
-
-  // Find the parent user by phone number
-  const parentUser = await User.findOne({ phone: from, role: 'parent' });
-  if (parentUser) session.parent = parentUser._id;
 
   const messageText = text || '';
 

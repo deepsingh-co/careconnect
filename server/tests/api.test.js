@@ -40,6 +40,8 @@ const Notification = require('../src/models/Notification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
 const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
 const whatsappService = require('../src/services/whatsappService');
+const webhookController = require('../src/controllers/webhookController');
+const ConversationSession = require('../src/models/ConversationSession');
 const config = require('../src/config');
 
 let parentToken, childToken, providerToken, adminToken;
@@ -599,6 +601,26 @@ describe('WhatsApp Webhook', () => {
     expect(res1.status).toBe(200);
     const res2 = await request(app).post('/api/webhooks/whatsapp').send(payload);
     expect(res2.status).toBe(200);
+  });
+
+  test('Unregistered numbers are ignored — only verified parents get replies', async () => {
+    const stranger = '+911122233344';
+
+    const capture = whatsappService.startCapture();
+    try {
+      await webhookController.handleIncomingMessage({
+        from: stranger,
+        id: `stranger_${Date.now()}`,
+        text: 'khana chahiye',
+        type: 'text',
+      });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    expect(capture).toHaveLength(0); // no reply goes out to a stranger
+    const session = await ConversationSession.findOne({ whatsappNumber: stranger });
+    expect(session).toBeNull(); // not even a conversation session is opened
   });
 });
 
