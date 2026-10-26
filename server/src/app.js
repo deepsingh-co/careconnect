@@ -99,9 +99,28 @@ const start = async () => {
   startJobs();
 
   const wa = require('./services/whatsappService').getStatus();
-  const waLabel = wa.isDemo
+  let waLabel = wa.isDemo
     ? `DEMO MODE${wa.configured ? '' : ` — missing ${wa.missing.join(', ')}`}`
     : `LIVE (${wa.provider})`;
+
+  // Baileys (WhatsApp Web): pair a normal WhatsApp number by scanning a QR.
+  if (config.whatsapp.provider === 'baileys') {
+    const baileys = require('./services/baileysService');
+    const webhookController = require('./controllers/webhookController');
+    baileys.setInboundHandler(webhookController.handleIncomingMessage);
+    baileys
+      .connect()
+      .then((s) => {
+        console.log(
+          `[Server] WhatsApp (Baileys): ${s.state}` +
+            (s.state === 'open'
+              ? ` as ${s.phone || 'unknown number'}`
+              : ' — scan the QR in Admin → Integrations to link a number')
+        );
+      })
+      .catch((err) => console.error('[Server] WhatsApp (Baileys) failed to start:', err.message));
+    waLabel = `${wa.mode.toUpperCase()} (baileys${wa.configured ? '' : ' — QR scan pending'})`;
+  }
 
   app.listen(config.port, () => {
     console.log(`[Server] CareConnect backend running on port ${config.port} [${config.env}]`);

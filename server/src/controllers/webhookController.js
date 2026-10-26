@@ -86,6 +86,16 @@ exports.simulate = async (req, res, next) => {
   }
 };
 
+/**
+ * Normalises any inbound sender reference (Meta "919876543210", Twilio
+ * "whatsapp:+91…", Baileys "919876543210@s.whatsapp.net") to the E.164 format
+ * stored on User.phone: "+919876543210".
+ */
+const normalizePhone = (value) => {
+  const digits = String(value || '').replace(/\D/g, '');
+  return digits ? `+${digits}` : '';
+};
+
 async function processWebhookPayload(body, rawBody, signature) {
   // Verify signature for Meta
   if (config.whatsapp.provider === 'meta' && rawBody) {
@@ -122,8 +132,19 @@ async function processWebhookPayload(body, rawBody, signature) {
   }
 }
 
+/**
+ * Single inbound message pipeline — shared by the Meta/Twilio webhooks above
+ * and by the Baileys (WhatsApp Web) channel, which calls this directly.
+ */
+exports.handleIncomingMessage = handleIncomingMessage;
+
 async function handleIncomingMessage(msg) {
-  const { from, id, text } = msg;
+  const from = normalizePhone(msg.from);
+  const { id, text } = msg;
+  if (!from) {
+    console.warn('[Webhook] Message without a usable phone number — ignoring.');
+    return;
+  }
 
   // Deduplication: skip if we've seen this message ID
   const session = await ConversationSession.findOneAndUpdate(
@@ -526,7 +547,10 @@ async function notifyChildren(parentUser, title, body, type, data) {
     const childId = link.child?._id || link.child;
     await Notification.create({ recipient: childId, type, title, body, data });
     if (link.child?.phone) {
-      await whatsappService.sendMessage(link.child.phone, `[CareConnect • DEMO] ${body}`);
+      // The DEMO tag only ever appears on simulated traffic; real live messages
+      // to family members must read like normal WhatsApp messages.
+      const prefix = whatsappService.isDemo ? '[CareConnect • DEMO] ' : '';
+      await whatsappService.sendMessage(link.child.phone, `${prefix}${body}`);
     }
   }
 }

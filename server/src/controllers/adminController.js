@@ -8,6 +8,7 @@ const AuditLog = require('../models/AuditLog');
 const EmergencyAlert = require('../models/EmergencyAlert');
 const config = require('../config');
 const whatsappService = require('../services/whatsappService');
+const baileysService = require('../services/baileysService');
 const { getConnectionStatus } = require('../config/database');
 
 exports.getUsers = async (req, res, next) => {
@@ -194,7 +195,7 @@ exports.assignBooking = async (req, res, next) => {
 /** Aggregated WhatsApp status for the admin integrations screen. */
 const buildWhatsappStatus = () => {
   const wa = whatsappService.getStatus();
-  return {
+  const status = {
     status: wa.isDemo ? 'demo_mode' : 'configured',
     provider: wa.provider === 'demo' ? null : wa.provider,
     mode: wa.mode,
@@ -207,6 +208,21 @@ const buildWhatsappStatus = () => {
         : 'DEMO MODE: No real WhatsApp messages will be sent.'
       : null,
   };
+
+  // Baileys (WhatsApp Web) — live link state for the QR scanner UI.
+  if (wa.provider === 'baileys') {
+    const channel = baileysService.getStatus();
+    status.channel = {
+      state: channel.state,
+      phone: channel.phone,
+      since: channel.since,
+      lastError: channel.lastError,
+      sessionExists: channel.sessionExists,
+      hasQr: Boolean(channel.qr),
+    };
+  }
+
+  return status;
 };
 
 exports.getIntegrationStatus = async (req, res) => {
@@ -274,6 +290,60 @@ exports.setWhatsappMode = async (req, res, next) => {
     }).catch(() => {}); // audit must never break the toggle itself
 
     res.json({ success: true, data: { whatsapp: status } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/admin/whatsapp/channel
+ * Baileys link state + QR (data-URL) for the admin scanner UI. Poll this while
+ * the QR is on screen — WhatsApp refreshes the code periodically.
+ */
+exports.getWhatsappChannel = async (req, res) => {
+  res.json({ success: true, data: baileysService.getStatus() });
+};
+
+/**
+ * POST /api/admin/whatsapp/channel/restart
+ * Drops the current WhatsApp Web socket and pairs again (fresh QR).
+ */
+exports.restartWhatsappChannel = async (req, res, next) => {
+  try {
+    const status = await baileysService.restart();
+
+    AuditLog.create({
+      actor: req.user._id,
+      actorRole: 'admin',
+      action: 'admin.whatsapp.channel.restart',
+      resource: 'WhatsApp',
+      details: { state: status.state },
+    }).catch(() => {});
+
+    res.json({ success: true, data: status });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/admin/whatsapp/channel/send  { to, text }
+ * Real end-to-end send test through the current mode/provider.
+ */
+exports.sendWhatsappTest = async (req, res, next) => {
+  try {
+    const to = String(req.body?.to || '').trim();
+    const text = String(req.body?.text || '').trim();
+    if (!to || !text) {
+      return res.status(400).json({ success: false, message: 'to and text are required.' });
+    }
+
+    const result = await whatsappService.sendMessage(to, text);
+    res.json({
+      success: true,
+      data: result,
+      ...(result.demo ? { notice: 'Simulated (demo mode) — no real WhatsApp message was sent.' } : {}),
+    });
   } catch (err) {
     next(err);
   }

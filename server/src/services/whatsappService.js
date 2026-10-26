@@ -1,6 +1,6 @@
 /**
  * WhatsApp Provider Abstraction
- * Supports: Meta Cloud API | Twilio | Demo Mode
+ * Supports: Baileys (WhatsApp Web, QR login) | Meta Cloud API | Twilio | Demo Mode
  *
  * MODE SWITCH
  *  - "demo"  → messages are simulated, nothing leaves the server.
@@ -9,10 +9,16 @@
  * the choice is persisted in server/.whatsapp-mode.json so it survives restarts.
  * When no explicit choice has been made, the server stays in demo mode until
  * the provider credentials are complete.
+ *
+ * PRODUCTION IS LIVE-ONLY
+ *  In NODE_ENV=production the demo mode is removed: the mode is always "live",
+ *  switching to demo is refused (400), and demo OTPs are never surfaced.
+ *  Demo remains available in development/tests only.
  */
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const baileysService = require('./baileysService');
 
 const MODE_FILE = path.resolve(__dirname, '../../.whatsapp-mode.json');
 
@@ -23,7 +29,8 @@ class WhatsappService {
   constructor() {
     this.provider = config.whatsapp.provider;
     this._capture = null;
-    this._mode = this._readModeFile();
+    // Production never honours a saved "demo" preference — live-only by design.
+    this._mode = config.isProd() ? 'live' : this._readModeFile();
   }
 
   /** Credentials the active provider still needs before it can go live. */
@@ -44,6 +51,12 @@ class WhatsappService {
       return missing;
     }
 
+    if (this.provider === 'baileys') {
+      // No .env credentials — the channel is authorised by scanning a QR code
+      // (Admin → Integrations). The session persists in server/.baileys-auth/.
+      return baileysService.hasSession() ? [] : ['WHATSAPP_SESSION (scan the QR in Admin → Integrations)'];
+    }
+
     return [`WHATSAPP_PROVIDER (unsupported value: ${this.provider})`];
   }
 
@@ -54,6 +67,7 @@ class WhatsappService {
 
   /** True when outgoing messages must be simulated. */
   get isDemo() {
+    if (config.isProd()) return false; // production: demo mode removed, always live
     if (this._mode === 'demo') return true;
     return !this.configured;
   }
@@ -67,7 +81,7 @@ class WhatsappService {
     return {
       provider: this.provider || 'demo',
       mode: this.mode,
-      preference: this._mode || 'auto',
+      preference: config.isProd() ? 'live' : this._mode || 'auto',
       isDemo: this.isDemo,
       configured: this.configured,
       missing: this.missingCredentials,
@@ -86,10 +100,20 @@ class WhatsappService {
       throw error;
     }
 
-    if (nextMode === 'live' && !this.configured) {
+    if (config.isProd() && nextMode === 'demo') {
       const error = new Error(
-        `Cannot switch to live mode: set ${this.missingCredentials.join(', ')} in server/.env first.`
+        'Demo mode is disabled in production — CareConnect only sends real messages to real users.'
       );
+      error.statusCode = 400;
+      throw error;
+    }
+
+    if (nextMode === 'live' && !this.configured) {
+      const detail =
+        this.provider === 'baileys'
+          ? 'link a WhatsApp number first: Admin → Integrations → scan the QR code.'
+          : `set ${this.missingCredentials.join(', ')} in server/.env first.`;
+      const error = new Error(`Cannot switch to live mode: ${detail}`);
       error.statusCode = 400;
       throw error;
     }
@@ -145,6 +169,8 @@ class WhatsappService {
       return this._sendMeta(to, text);
     } else if (this.provider === 'twilio') {
       return this._sendTwilio(to, text);
+    } else if (this.provider === 'baileys') {
+      return this._sendBaileys(to, text);
     }
 
     throw new Error(`Unknown WhatsApp provider: ${this.provider}`);
@@ -152,6 +178,7 @@ class WhatsappService {
 
   /**
    * Send a real OTP to a phone number on WhatsApp.
+   * - Baileys: freeform text — WhatsApp Web has no template approval step.
    * - Meta Cloud API: uses a pre-approved AUTHENTICATION template (required for
    *   business-initiated messages outside the 24h customer service window).
    * - Twilio: freeform text (works in sandbox; production requires an approved
@@ -174,6 +201,8 @@ class WhatsappService {
       return this._postMeta(this.buildMetaOtpPayload(to, otp));
     } else if (this.provider === 'twilio') {
       return this._sendTwilio(to, text);
+    } else if (this.provider === 'baileys') {
+      return this._sendBaileys(to, text);
     }
 
     throw new Error(`Unknown WhatsApp provider: ${this.provider}`);
@@ -212,11 +241,14 @@ class WhatsappService {
       throw new Error('Meta WhatsApp token or phoneNumberId not configured.');
     }
 
+    // Meta expects E.164 without a leading "+".
+    const body = { ...payload, to: String(payload.to || '').replace(/^\+/, '') };
+
     const axios = require('axios');
     try {
       const resp = await axios.post(
         `https://graph.facebook.com/v18.0/${phoneNumberId}/messages`,
-        payload,
+        body,
         {
           headers: {
             Authorization: `Bearer ${token}`,
@@ -242,6 +274,11 @@ class WhatsappService {
       type: 'text',
       text: { body: text },
     });
+  }
+
+  /** Freeform send through the linked WhatsApp number (Baileys / WhatsApp Web). */
+  async _sendBaileys(to, text) {
+    return baileysService.sendText(to, text);
   }
 
   async _sendTwilio(to, text) {

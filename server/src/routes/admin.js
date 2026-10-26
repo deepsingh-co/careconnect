@@ -17,6 +17,9 @@ router.get('/rides', adminController.getRides);
 router.get('/orders', adminController.getOrders);
 router.get('/integrations', adminController.getIntegrationStatus);
 router.post('/whatsapp/mode', adminController.setWhatsappMode);
+router.get('/whatsapp/channel', adminController.getWhatsappChannel);
+router.post('/whatsapp/channel/restart', adminController.restartWhatsappChannel);
+router.post('/whatsapp/channel/send', adminController.sendWhatsappTest);
 router.get('/audit-logs', adminController.getAuditLogs);
 
 module.exports = router;

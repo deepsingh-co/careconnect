@@ -3,6 +3,7 @@ dist/
 build/
 .env
 .whatsapp-mode.json
+.baileys-auth/
 *.log
 coverage/
 .DS_Store

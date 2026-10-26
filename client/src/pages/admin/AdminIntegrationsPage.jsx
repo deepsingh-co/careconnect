@@ -23,7 +23,7 @@ const statusColor = (status) => {
 };
 
 const setupInstructions = {
-  whatsapp: 'Set WHATSAPP_PROVIDER=meta or twilio in server/.env and provide the corresponding credentials. See README.md for full setup.',
+  whatsapp: 'Recommended: WHATSAPP_PROVIDER=baileys + scan the QR on this page with a DEDICATED WhatsApp number (free, no Meta approval). Alternatives: meta/twilio credentials in server/.env. See WHATSAPP_SETUP.md.',
   ai: 'Set AI_PROVIDER=openai or google in server/.env and provide API key. Falls back to deterministic mode if unset.',
   maps: 'Set MAPS_PROVIDER=google and GOOGLE_MAPS_API_KEY in server/.env.',
   email: 'Set EMAIL_PROVIDER=smtp and SMTP_* credentials in server/.env.',
@@ -33,6 +33,11 @@ export default function AdminIntegrationsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [switching, setSwitching] = useState(false);
+  const [channel, setChannel] = useState(null);
+  const [relinking, setRelinking] = useState(false);
+
+  const waProvider = data?.whatsapp?.provider;
+  const channelState = channel?.state;
 
   useEffect(() => {
     setLoading(true);
@@ -41,6 +46,33 @@ export default function AdminIntegrationsPage() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  // Baileys (WhatsApp Web): keep the link state + QR fresh while on this page.
+  // WhatsApp refreshes the QR periodically, so polling picks up new codes too.
+  useEffect(() => {
+    if (waProvider !== 'baileys') return undefined;
+    let active = true;
+    const load = () => api.get('/admin/whatsapp/channel')
+      .then((res) => { if (active) setChannel(res.data.data); })
+      .catch(() => {});
+    load();
+    const timer = setInterval(load, 3000);
+    return () => { active = false; clearInterval(timer); };
+  }, [waProvider]);
+
+  async function relinkChannel() {
+    if (relinking) return;
+    setRelinking(true);
+    try {
+      const res = await api.post('/admin/whatsapp/channel/restart');
+      setChannel(res.data.data);
+      toast.success('Naya QR generate ho raha hai — phone se scan kijiye.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Re-link failed');
+    } finally {
+      setRelinking(false);
+    }
+  }
 
   async function switchMode(mode) {
     if (switching) return;
@@ -117,10 +149,83 @@ export default function AdminIntegrationsPage() {
                   </div>
                 )}
 
+                {key === 'whatsapp' && val.provider === 'baileys' && (
+                  <div className="mb-3 border-t border-gray-100 pt-3">
+                    <div className="flex items-center justify-between mb-2 gap-2">
+                      <p className="text-sm font-semibold text-[#1e3a5f]">Link WhatsApp number</p>
+                      {channel && (
+                        <span
+                          className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                            channelState === 'open' ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'
+                          }`}
+                        >
+                          {channelState === 'open'
+                            ? `Linked${channel.phone ? `: ${channel.phone}` : ''}`
+                            : channelState || 'starting…'}
+                        </span>
+                      )}
+                    </div>
+
+                    {(!channel || channelState === 'connecting' || channelState === 'disconnected') && (
+                      <p className="text-xs text-gray-500 mb-2">
+                        {channelState === 'disconnected'
+                          ? 'Connection band hai — apne aap reconnect ho raha hai…'
+                          : 'WhatsApp Web se connect ho raha hai…'}
+                      </p>
+                    )}
+
+                    {channelState === 'qr' && channel.qr && (
+                      <div className="flex flex-col items-center gap-2">
+                        <img
+                          src={channel.qr}
+                          alt="WhatsApp linking QR code"
+                          className="w-44 h-44 rounded-lg border border-gray-200 bg-white p-1"
+                        />
+                        <p className="text-xs text-gray-500 text-center leading-relaxed">
+                          <b>DEDICATED</b> number ke phone pe WhatsApp kholein →{' '}
+                          <b>Linked devices</b> → <b>Link a device</b> → ye QR scan karein.
+                        </p>
+                      </div>
+                    )}
+
+                    {channelState === 'open' && (
+                      <p className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2">
+                        {channel.phone || 'Number'} linked — parent ke messages ka real reply yahin se jayega.
+                      </p>
+                    )}
+
+                    {channel?.lastError && (
+                      <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mt-2">{channel.lastError}</p>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={relinkChannel}
+                      disabled={relinking}
+                      className="mt-2 text-xs font-semibold text-teal-600 hover:text-teal-700 disabled:opacity-50"
+                    >
+                      {relinking
+                        ? 'Generating…'
+                        : channelState === 'qr'
+                          ? 'Naya QR generate karein'
+                          : 'Re-link / naya QR'}
+                    </button>
+                  </div>
+                )}
+
                 {key === 'whatsapp' && val.missing?.length > 0 && (
                   <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-2">
-                    Live mode on karne ke liye <span className="font-mono">{val.missing.join(', ')}</span> server/.env
-                    mein set karein.
+                    {val.provider === 'baileys' ? (
+                      <>
+                        Live mode on karne ke liye pehle number link karein — <span className="font-mono">{val.missing.join(', ')}</span>{' '}
+                        (upar wala QR scan karein).
+                      </>
+                    ) : (
+                      <>
+                        Live mode on karne ke liye <span className="font-mono">{val.missing.join(', ')}</span> server/.env
+                        mein set karein.
+                      </>
+                    )}
                   </p>
                 )}
                 {val.notice && (

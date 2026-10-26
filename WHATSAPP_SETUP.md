@@ -4,7 +4,8 @@ CareConnect works in three WhatsApp modes:
 
 | Mode | `WHATSAPP_PROVIDER` | What happens |
 |------|--------------------|--------------|
-| Demo | *(empty)* | Nothing is sent on WhatsApp. Replies are logged; the web chat simulator + demo OTP display are enabled. |
+| Demo | *(empty)* | Nothing is sent on WhatsApp. Replies are logged; the web chat simulator + demo OTP display are enabled. **Dev/tests only — production (`NODE_ENV=production`) is live-only and refuses demo mode.** |
+| **Baileys (WhatsApp Web)** | `baileys` | **Recommended.** Real messages + real OTPs from a normal WhatsApp number linked by scanning a QR code (Admin → Integrations). 100% free, no Meta/WABA/template approval. |
 | Meta Cloud API | `meta` | **Real** messages and **real OTPs** sent from your WhatsApp Business number via the official Meta Cloud API (free tier available). |
 | Twilio | `twilio` | Real messages via Twilio WhatsApp (sandbox for instant testing). |
 
@@ -12,7 +13,75 @@ Everything in the app already uses one abstraction (`server/src/services/whatsap
 
 ---
 
-## Option A — Meta WhatsApp Cloud API (recommended, official)
+## Option A — Baileys / WhatsApp Web (recommended: free, QR scan, no Meta approval)
+
+CareConnect links to WhatsApp exactly like WhatsApp Web does: you scan a QR
+code once with a **dedicated** phone number and the server starts sending and
+receiving real messages through `@whiskeysockets/baileys` — every message is
+free and there is no template approval step (OTPs go as normal text).
+
+### Ban safety — read this first
+
+- Use a **DEDICATED number** — never your personal or main business number.
+- **Reply-only pattern**: the bot only answers messages parents send first
+  (customer-initiated). It never blasts people who didn't message you.
+- **One session**: only the deployed server holds the linked device.
+- Keep a fallback channel (email/app) for critical OTPs.
+
+### 1. Configure the provider
+
+```env
+WHATSAPP_PROVIDER=baileys
+# optional override:
+# BAILEYS_AUTH_DIR=./.baileys-auth
+```
+
+No tokens, no secrets — the QR scan *is* the credential. Session files are
+stored in `server/.baileys-auth/` (gitignored) and survive restarts.
+
+### 2. Start the server and scan the QR
+
+1. Start the backend (`npm run dev` in `careconnect/server`).
+2. Log in to the app as **admin** → **Admin → Integrations**.
+3. The WhatsApp card shows a **QR code** (it refreshes automatically).
+4. On the dedicated phone: WhatsApp → **Linked devices** → **Link a device** →
+   scan the QR. The card flips to `Linked: +91…` within a few seconds.
+
+### 3. Go live and test end-to-end
+
+1. Flip the **Demo → Live** toggle on the same card (refused until the number
+   is linked).
+2. Send a real test message:
+
+   ```bash
+   node scripts/test-whatsapp.js 919876543210 "Hello from CareConnect"
+   ```
+
+   (talks to the running server's admin API — start the server first)
+
+3. Walk your flow: parent WhatsApp → `khana chahiye` / `ride chahiye` →
+   replies, order/booking refs, family notifications.
+
+### How inbound messages work
+
+The Baileys socket feeds every incoming 1:1 text message into the **same
+pipeline as the Meta webhook** (`webhookController.handleIncomingMessage`), so
+intents, conversation state, orders and family notifications behave identically
+across channels. Phone numbers are normalised automatically
+(`919876543210@s.whatsapp.net` → `+919876543210`).
+
+### Production notes
+
+- Production is **live-only**: demo mode is removed (`setMode('demo')` → 400,
+  demo OTPs are never surfaced).
+- Lost session? The admin Integrations page shows the error and a
+  **Re-link / naya QR** button to pair again.
+- Reminders/notifications that parents did not trigger are the risky category
+  for unofficial APIs — keep them low-frequency, or move them to email/in-app.
+
+---
+
+## Option B — Meta WhatsApp Cloud API (official)
 
 ### 1. Create the app and get credentials
 
@@ -85,7 +154,7 @@ META_WHATSAPP_OTP_TEMPLATE_BUTTON=true
 
 ---
 
-## Option B — Twilio (fastest way to test instantly, no business account)
+## Option C — Twilio (fastest way to test instantly, no business account)
 
 1. Create a free account at https://twilio.com → **Messaging → Try it out → Send a WhatsApp message** (Sandbox).
 2. From your phone, send `join <your-sandbox-code>` to the sandbox number shown (e.g. `+1 415 523 8886`).
@@ -128,7 +197,8 @@ TWILIO_WHATSAPP_FROM=+14155238886
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `WHATSAPP_PROVIDER` | `meta` | empty = demo mode |
+| `WHATSAPP_PROVIDER` | `baileys` (recommended), `meta`, `twilio` | empty = demo mode (dev/test only; production is live-only) |
+| `BAILEYS_AUTH_DIR` | `./.baileys-auth` | WhatsApp Web session folder (created after the QR scan) |
 | `META_WHATSAPP_TOKEN` | `EAAG...` | permanent system-user token |
 | `META_WHATSAPP_PHONE_NUMBER_ID` | `123456789012345` | API Setup |
 | `META_WHATSAPP_WEBHOOK_VERIFY_TOKEN` | random string | same value in Meta webhook config |
@@ -145,6 +215,10 @@ TWILIO_WHATSAPP_FROM=+14155238886
 
 | Symptom | Fix |
 |---------|-----|
+| QR never appears on the Integrations page | Provider not set to `baileys`, or server logs show a Baileys start error — check the API logs |
+| QR shows but scan says "phone not connected" | The QR expired — wait for the auto-refresh or click **Naya QR generate karein** |
+| Linked number goes offline after restart | Session files missing (`.baileys-auth/` not on the deployed disk) — scan the QR again; use a persistent disk in production |
+| Bot stops replying | Number likely banned/restricted by WhatsApp (see ban-safety rules above) — re-link a fresh dedicated number |
 | Webhook verification fails | Verify token mismatch, or the URL is not public HTTPS |
 | OTP request returns 502 | Check server logs — usually invalid/expired token, wrong phone number ID, or template not approved |
 | `#131047` re-engagement error | Business-initiated message outside 24h window — must use an approved template |

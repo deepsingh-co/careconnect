@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 
 const config = {
   env: process.env.NODE_ENV || 'development',
@@ -19,7 +20,7 @@ const config = {
   },
 
   whatsapp: {
-    provider: process.env.WHATSAPP_PROVIDER || '', // 'meta' | 'twilio' | ''
+    provider: process.env.WHATSAPP_PROVIDER || '', // 'meta' | 'twilio' | 'baileys' | ''
     meta: {
       token: process.env.META_WHATSAPP_TOKEN || '',
       phoneNumberId: process.env.META_WHATSAPP_PHONE_NUMBER_ID || '',
@@ -38,6 +39,10 @@ const config = {
       accountSid: process.env.TWILIO_ACCOUNT_SID || '',
       authToken: process.env.TWILIO_AUTH_TOKEN || '',
       from: process.env.TWILIO_WHATSAPP_FROM || '+14155238886',
+    },
+    baileys: {
+      // WhatsApp Web session (linked device) storage — created after the QR scan.
+      authDir: process.env.BAILEYS_AUTH_DIR || path.resolve(__dirname, '../../.baileys-auth'),
     },
   },
 

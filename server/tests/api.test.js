@@ -8,6 +8,10 @@ process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:2
 // The suite makes more than the default 100 requests / 15 min from 127.0.0.1,
 // which would otherwise start returning 429 partway through the run.
 process.env.RATE_LIMIT_MAX = process.env.RATE_LIMIT_MAX || '10000';
+// The server folder may carry a real .env on dev machines (e.g. WHATSAPP_PROVIDER=
+// baileys after linking a number). Pin the provider off so this suite always
+// asserts the demo/no-provider behaviour — identical to CI, which has no .env.
+process.env.WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || '';
 
 const request = require('supertest');
 const fs = require('fs');
@@ -1074,5 +1078,111 @@ describe('Phone OTP Auth (children)', () => {
   test('A parent number cannot be used for child OTP login', async () => {
     const res = await request(app).post('/api/auth/otp/request').send({ phone: '+919888777666' });
     expect(res.status).toBe(409);
+  });
+});
+
+// ─── WhatsApp · Baileys channel & production live-only rules ──────────────────
+describe('WhatsApp · Baileys channel & production live-only', () => {
+  const baileysService = require('../src/services/baileysService');
+  const MODE_FILE = path.resolve(__dirname, '../.whatsapp-mode.json');
+  let originalProvider;
+  let modeFileSnapshot;
+
+  beforeAll(() => {
+    originalProvider = whatsappService.provider;
+    try { modeFileSnapshot = fs.readFileSync(MODE_FILE, 'utf8'); } catch { modeFileSnapshot = null; }
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+    whatsappService.provider = originalProvider;
+    whatsappService._mode = null;
+    // Never leave a mode file written by these tests behind.
+    if (modeFileSnapshot === null) {
+      try { fs.unlinkSync(MODE_FILE); } catch { /* nothing to clean up */ }
+    } else {
+      try { fs.writeFileSync(MODE_FILE, modeFileSnapshot); } catch { /* best effort */ }
+    }
+  });
+
+  test('JID and phone numbers normalise to the DB format', () => {
+    expect(baileysService.jidToPhone('919876543210@s.whatsapp.net')).toBe('+919876543210');
+    expect(baileysService.phoneToJid('+919876543210')).toBe('919876543210@s.whatsapp.net');
+    expect(baileysService.phoneToJid('919876543210')).toBe('919876543210@s.whatsapp.net');
+    expect(baileysService.phoneToJid('')).toBe('');
+  });
+
+  test('Text is extracted from the common WhatsApp message shapes', () => {
+    expect(baileysService.extractText({ conversation: 'hi' })).toBe('hi');
+    expect(baileysService.extractText({ extendedTextMessage: { text: 'order food' } })).toBe('order food');
+    expect(baileysService.extractText({ imageMessage: { caption: 'yeh dekho' } })).toBe('yeh dekho');
+    expect(baileysService.extractText({ ephemeralMessage: { message: { conversation: 'wrapped' } } })).toBe('wrapped');
+    expect(baileysService.extractText({ protocolMessage: {} })).toBeNull();
+  });
+
+  test('Baileys without a linked session cannot go live (QR scan required)', () => {
+    whatsappService.provider = 'baileys';
+    jest.spyOn(baileysService, 'hasSession').mockReturnValue(false);
+
+    expect(whatsappService.configured).toBe(false);
+    expect(whatsappService.missingCredentials.join(' ')).toMatch(/QR/i);
+    expect(() => whatsappService.setMode('live')).toThrow(/Cannot switch to live mode/);
+    expect(() => whatsappService.setMode('live')).toThrow(/QR/i);
+  });
+
+  test('Baileys with a linked session is fully configured and can go live', () => {
+    whatsappService.provider = 'baileys';
+    jest.spyOn(baileysService, 'hasSession').mockReturnValue(true);
+
+    expect(whatsappService.configured).toBe(true);
+    expect(whatsappService.missingCredentials).toEqual([]);
+
+    const status = whatsappService.setMode('live');
+    expect(status.mode).toBe('live');
+    expect(whatsappService.isDemo).toBe(false);
+  });
+
+  test('Sending while the number is not linked fails with a QR-scan error', async () => {
+    whatsappService.provider = 'baileys';
+    whatsappService._mode = 'live';
+    jest.spyOn(baileysService, 'hasSession').mockReturnValue(true);
+
+    await expect(whatsappService.sendMessage('+919876543210', 'hi')).rejects.toThrow(/QR code/i);
+  });
+
+  test('Production forces live mode and refuses demo', () => {
+    const isProd = jest.spyOn(config, 'isProd').mockReturnValue(true);
+    whatsappService._mode = 'demo'; // even an explicit saved demo preference is ignored
+
+    expect(whatsappService.isDemo).toBe(false);
+    expect(whatsappService.mode).toBe('live');
+    expect(whatsappService.getStatus().preference).toBe('live');
+    expect(() => whatsappService.setMode('demo')).toThrow(/production/i);
+    expect(isProd).toHaveBeenCalled();
+  });
+
+  test('Channel status endpoint works for admins', async () => {
+    const res = await request(app)
+      .get('/api/admin/whatsapp/channel')
+      .set('Authorization', `Bearer ${adminToken}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data).toHaveProperty('state');
+    expect(res.body.data).toHaveProperty('sessionExists');
+  });
+
+  test('Test-send endpoint validates its input', async () => {
+    const res = await request(app)
+      .post('/api/admin/whatsapp/channel/send')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ to: '', text: '' });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/required/i);
+  });
+
+  test('Non-admins cannot touch the WhatsApp channel', async () => {
+    const res = await request(app)
+      .get('/api/admin/whatsapp/channel')
+      .set('Authorization', `Bearer ${childToken}`);
+    expect(res.status).toBe(403);
   });
 });
