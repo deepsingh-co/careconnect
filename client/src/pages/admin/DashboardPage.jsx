@@ -231,7 +231,7 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     <Badge variant={item.status?.status === 'configured' ? 'success' : 'warning'}>
-                      {item.status?.status === 'configured' ? 'Configured' : 'Demo Mode'}
+                      {item.status?.status === 'configured' ? 'Configured' : 'Setup pending'}
                     </Badge>
                   </div>
                   {item.status?.notice && (

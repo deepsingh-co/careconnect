@@ -210,15 +210,17 @@ export default function FamilyPage() {
                 </>
               ) : (
                 <>
-                  <p className="text-sm text-gray-500 mb-3">
-                    OTP sent to <span className="font-medium text-gray-700">{otpSent.phone}</span> on WhatsApp.
-                    Ask your parent for the 6-digit code.
-                  </p>
-                  {otpSent.demoOtp && (
-                    <div className="mb-3 text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-2.5">
-                      DEMO MODE: WhatsApp connected nahi hai — OTP yahan dikh raha hai:{' '}
-                      <span className="font-mono font-bold tracking-wider">{otpSent.demoOtp}</span>
+                  {otpSent.whatsappLinked === false ? (
+                    <div className="mb-3 text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2.5">
+                      Parent ka WhatsApp number linked nahi hai, isliye OTP un tak deliver nahi hoga.
+                      Admin se <span className="font-semibold">Integrations</span> page par QR scan karwa lein,
+                      phir yeh OTP WhatsApp par aayega.
                     </div>
+                  ) : (
+                    <p className="text-sm text-gray-500 mb-3">
+                      OTP sent to <span className="font-medium text-gray-700">{otpSent.phone}</span> on WhatsApp.
+                      Ask your parent for the 6-digit code.
+                    </p>
                   )}
                   <div className="flex gap-2">
                     <Input placeholder="6-digit OTP" value={otp} maxLength={6}

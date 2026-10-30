@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../layouts/DashboardLayout';
-import { Card, Badge, Skeleton, Alert, Toggle } from '../../components/ui';
+import { Card, Badge, Skeleton, Alert } from '../../components/ui';
 import api from '../../services/api';
 import { Settings, Database, MessageCircle, Brain, MapPin, Car, UtensilsCrossed, Home, Mail } from 'lucide-react';
 
@@ -18,7 +18,7 @@ const integrationMeta = {
 
 const statusColor = (status) => {
   if (['connected', 'configured'].includes(status)) return 'success';
-  if (['demo_mode', 'fallback_mode', 'manual_fulfillment', 'demo_catalogue', 'demo_data', 'simulated'].includes(status)) return 'warning';
+  if (['awaiting_setup', 'demo_mode', 'fallback_mode', 'manual_fulfillment', 'demo_catalogue', 'demo_data', 'simulated'].includes(status)) return 'warning';
   return 'danger';
 };
 
@@ -32,7 +32,6 @@ const setupInstructions = {
 export default function AdminIntegrationsPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [switching, setSwitching] = useState(false);
   const [channel, setChannel] = useState(null);
   const [relinking, setRelinking] = useState(false);
 
@@ -89,28 +88,10 @@ export default function AdminIntegrationsPage() {
     }
   }
 
-  async function switchMode(mode) {
-    if (switching) return;
-    setSwitching(true);
-    try {
-      const res = await api.post('/admin/whatsapp/mode', { mode });
-      setData((prev) => ({ ...prev, whatsapp: res.data.data.whatsapp }));
-      toast.success(
-        mode === 'live'
-          ? 'Live mode ON — ab real WhatsApp messages jayenge'
-          : 'Demo mode ON — messages sirf simulate honge'
-      );
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Mode switch failed');
-    } finally {
-      setSwitching(false);
-    }
-  }
-
   return (
     <DashboardLayout title="Integration Configuration">
-      <Alert type="demo" className="mb-4">
-        Integrations without credentials run in DEMO MODE. Simulated features are clearly labelled. No real messages, bookings or dispatches occur in demo mode.
+      <Alert type="info" className="mb-4">
+        WhatsApp live chalta hai — admin ya demo toggle nahi hai. Number link karna zaroori hai.
       </Alert>
 
       {loading ? (
@@ -134,35 +115,6 @@ export default function AdminIntegrationsPage() {
                   </div>
                   <Badge variant={statusColor(val.status)}>{val.status?.replace(/_/g, ' ')}</Badge>
                 </div>
-
-                {key === 'whatsapp' && (
-                  <div className="mb-3 flex items-center justify-between gap-3 border-t border-gray-100 pt-3">
-                    <div className="min-w-0">
-                      <p className="text-sm font-semibold text-[#1e3a5f]">
-                        Mode: {val.mode === 'live' ? 'Live' : 'Demo'}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        {val.mode === 'live'
-                          ? 'Real WhatsApp messages bheje ja rahe hain.'
-                          : 'Simulated messages — kuch bhi real WhatsApp par nahi jata.'}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className={`text-xs ${val.mode !== 'live' ? 'font-semibold text-[#1e3a5f]' : 'text-gray-400'}`}>
-                        Demo
-                      </span>
-                      <Toggle
-                        checked={val.mode === 'live'}
-                        disabled={switching}
-                        aria-label="Switch WhatsApp between demo and live mode"
-                        onChange={(next) => switchMode(next ? 'live' : 'demo')}
-                      />
-                      <span className={`text-xs ${val.mode === 'live' ? 'font-semibold text-teal-600' : 'text-gray-400'}`}>
-                        Live
-                      </span>
-                    </div>
-                  </div>
-                )}
 
                 {key === 'whatsapp' && val.provider === 'baileys' && (
                   <div className="mb-3 border-t border-gray-100 pt-3">
@@ -232,12 +184,12 @@ export default function AdminIntegrationsPage() {
                   <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-2">
                     {val.provider === 'baileys' ? (
                       <>
-                        Live mode on karne ke liye pehle number link karein — <span className="font-mono">{val.missing.join(', ')}</span>{' '}
+                        WhatsApp number link nahi hai — <span className="font-mono">{val.missing.join(', ')}</span>{' '}
                         (upar wala QR scan karein).
                       </>
                     ) : (
                       <>
-                        Live mode on karne ke liye <span className="font-mono">{val.missing.join(', ')}</span> server/.env
+                        WhatsApp live karne ke liye <span className="font-mono">{val.missing.join(', ')}</span> server/.env
                         mein set karein.
                       </>
                     )}

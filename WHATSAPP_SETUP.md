@@ -1,10 +1,10 @@
 # CareConnect — Real WhatsApp Setup (Production Guide)
 
-CareConnect works in three WhatsApp modes:
+CareConnect sends WhatsApp through whichever provider you configure:
 
 | Mode | `WHATSAPP_PROVIDER` | What happens |
 |------|--------------------|--------------|
-| Demo | *(empty)* | Nothing is sent on WhatsApp. Replies are logged; the web chat simulator + demo OTP display are enabled. **Dev/tests only — production (`NODE_ENV=production`) is live-only and refuses demo mode.** |
+| *(not configured)* | *(empty)* | No real WhatsApp number is linked yet, so OTPs cannot be delivered. The server simulates sends internally (for the web chat preview and API tests only) and the admin UI shows **"Setup pending".** **Dev/tests only — there is no user-facing demo toggle any more.** |
 | **Baileys (WhatsApp Web)** | `baileys` | **Recommended.** Real messages + real OTPs from a normal WhatsApp number linked by scanning a QR code (Admin → Integrations). 100% free, no Meta/WABA/template approval. |
 | Meta Cloud API | `meta` | **Real** messages and **real OTPs** sent from your WhatsApp Business number via the official Meta Cloud API (free tier available). |
 | Twilio | `twilio` | Real messages via Twilio WhatsApp (sandbox for instant testing). |
@@ -91,8 +91,10 @@ hands off to the provider's own app/site (they have no public consumer APIs).
 
 ### Production notes
 
-- Production is **live-only**: demo mode is removed (`setMode('demo')` → 400,
-  demo OTPs are never surfaced).
+- Production is **live-only**: the simulation fallback is removed and demo OTPs
+  are never surfaced.
+- There is no demo/live toggle — a number is either linked (live) or awaiting
+  setup (QR scan / missing env vars).
 - Lost session? The admin Integrations page shows the error and a
   **Re-link / naya QR** button to pair again.
 - Reminders/notifications that parents did not trigger are the risky category
@@ -216,7 +218,7 @@ TWILIO_WHATSAPP_FROM=+14155238886
 
 | Variable | Example | Notes |
 |----------|---------|-------|
-| `WHATSAPP_PROVIDER` | `baileys` (recommended), `meta`, `twilio` | empty = demo mode (dev/test only; production is live-only) |
+| `WHATSAPP_PROVIDER` | `baileys` (recommended), `meta`, `twilio` | empty = no provider configured (dev/test simulation only; production is live-only) |
 | `BAILEYS_AUTH_DIR` | `./.baileys-auth` | WhatsApp Web session folder (created after the QR scan) |
 | `META_WHATSAPP_TOKEN` | `EAAG...` | permanent system-user token |
 | `META_WHATSAPP_PHONE_NUMBER_ID` | `123456789012345` | API Setup |

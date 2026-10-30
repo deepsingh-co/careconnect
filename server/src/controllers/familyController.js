@@ -197,7 +197,10 @@ exports.requestParentOtp = async (req, res, next) => {
       data: {
         phone,
         expiresAt: record.expiresAt,
-        // Demo mode me phone par message nahi ja sakta, isliye OTP yahan dikhta hai
+        // Honest signal for the UI: is there a real WhatsApp number that can
+        // actually deliver this OTP right now? (tests/simulator still get demoOtp)
+        whatsappLinked: !whatsappService.isDemo,
+        // Fallback: OTP is returned so the dev web-simulator flow can be tested
         ...(whatsappService.isDemo ? { demoOtp: otp } : {}),
       },
       ...(whatsappService.isDemo

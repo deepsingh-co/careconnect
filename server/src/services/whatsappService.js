@@ -1,30 +1,20 @@
 /**
  * WhatsApp Provider Abstraction
- * Supports: Baileys (WhatsApp Web, QR login) | Meta Cloud API | Twilio | Demo Mode
+ * Supports: Baileys (WhatsApp Web, QR login) | Meta Cloud API | Twilio
  *
- * MODE SWITCH
- *  - "demo"  → messages are simulated, nothing leaves the server.
- *  - "live"  → messages go out through the configured provider.
- * The admin UI can flip modes at runtime (POST /api/admin/whatsapp/mode);
- * the choice is persisted in server/.whatsapp-mode.json so it survives restarts.
- * When no explicit choice has been made, the server stays in demo mode until
- * the provider credentials are complete.
+ * There is NO user-facing "demo mode" any more — the admin Demo/Live toggle was
+ * removed. Messages always go out through the configured provider. The one
+ * exception is a development fallback (see `isDemo` below): while the provider
+ * is NOT yet configured (no linked WhatsApp number / missing credentials) the
+ * service simulates sends so the web simulator preview and API testing keep
+ * working before a number is linked. In production this fallback never applies.
  *
  * PRODUCTION IS LIVE-ONLY
- *  In NODE_ENV=production the demo mode is removed: the mode is always "live",
- *  switching to demo is refused (400), and demo OTPs are never surfaced.
- *  Demo remains available in development/tests only.
+ *  In NODE_ENV=production the simulation fallback is removed: the mode is always
+ *  "live" and demo OTPs are never surfaced.
  */
-const fs = require('fs');
-const path = require('path');
 const config = require('../config');
 const baileysService = require('./baileysService');
-
-// Where the demo/live preference is persisted. Overridable so the test suite
-// can point at a scratch file instead of clobbering a real linked channel's
-// mode (running `npm test` once must not silently flip a live bot back to demo).
-const MODE_FILE =
-  process.env.WHATSAPP_MODE_FILE || path.resolve(__dirname, '../../.whatsapp-mode.json');
 
 /** Env values still holding the "PASTE_..._HERE" template count as missing. */
 const isRealValue = (value) => Boolean(value) && !/^PASTE_/i.test(String(value));
@@ -33,8 +23,6 @@ class WhatsappService {
   constructor() {
     this.provider = config.whatsapp.provider;
     this._capture = null;
-    // Production never honours a saved "demo" preference — live-only by design.
-    this._mode = config.isProd() ? 'live' : this._readModeFile();
   }
 
   /** Credentials the active provider still needs before it can go live. */
@@ -69,14 +57,18 @@ class WhatsappService {
     return this.missingCredentials.length === 0;
   }
 
-  /** True when outgoing messages must be simulated. */
+  /**
+   * True when outgoing messages must be simulated. This is NOT a user-facing
+   * "demo mode" — it is a development fallback that only applies while the
+   * provider is not yet configured (no linked WhatsApp number / missing creds).
+   * Production always reports false (live-only).
+   */
   get isDemo() {
-    if (config.isProd()) return false; // production: demo mode removed, always live
-    if (this._mode === 'demo') return true;
+    if (config.isProd()) return false; // production: simulation fallback removed, always live
     return !this.configured;
   }
 
-  /** The mode actually in effect right now: 'demo' | 'live'. */
+  /** 'demo' (simulating) | 'live' (real sends). Derived — not toggleable. */
   get mode() {
     return this.isDemo ? 'demo' : 'live';
   }
@@ -85,7 +77,6 @@ class WhatsappService {
     return {
       provider: this.provider || 'demo',
       mode: this.mode,
-      preference: config.isProd() ? 'live' : this._mode || 'auto',
       isDemo: this.isDemo,
       configured: this.configured,
       missing: this.missingCredentials,
@@ -93,60 +84,8 @@ class WhatsappService {
   }
 
   /**
-   * Switch between demo and live mode.
-   * Going live is refused (400) while credentials are incomplete, so the UI can
-   * tell the operator exactly which env vars are still missing.
-   */
-  setMode(nextMode) {
-    if (nextMode !== 'demo' && nextMode !== 'live') {
-      const error = new Error('Mode must be "demo" or "live".');
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (config.isProd() && nextMode === 'demo') {
-      const error = new Error(
-        'Demo mode is disabled in production — CareConnect only sends real messages to real users.'
-      );
-      error.statusCode = 400;
-      throw error;
-    }
-
-    if (nextMode === 'live' && !this.configured) {
-      const detail =
-        this.provider === 'baileys'
-          ? 'link a WhatsApp number first: Admin → Integrations → scan the QR code.'
-          : `set ${this.missingCredentials.join(', ')} in server/.env first.`;
-      const error = new Error(`Cannot switch to live mode: ${detail}`);
-      error.statusCode = 400;
-      throw error;
-    }
-
-    this._mode = nextMode;
-    this._writeModeFile(nextMode);
-    return this.getStatus();
-  }
-
-  _readModeFile() {
-    try {
-      const parsed = JSON.parse(fs.readFileSync(MODE_FILE, 'utf8'));
-      return parsed && (parsed.mode === 'demo' || parsed.mode === 'live') ? parsed.mode : null;
-    } catch {
-      return null; // no saved preference → auto (demo until credentials exist)
-    }
-  }
-
-  _writeModeFile(mode) {
-    try {
-      fs.writeFileSync(MODE_FILE, `${JSON.stringify({ mode }, null, 2)}\n`);
-    } catch (err) {
-      console.warn(`[WhatsApp] Could not persist mode to ${MODE_FILE}: ${err.message}`);
-    }
-  }
-
-  /**
-   * In-memory capture for the web simulator (demo only).
-   * While active, every outgoing message is recorded AND still processed normally.
+   * In-memory capture for the web simulator. While active, every outgoing
+   * message is recorded so the web chat can render the bot's replies.
    */
   startCapture() {
     this._capture = [];

@@ -184,14 +184,17 @@ export default function LoginPage() {
                 </form>
               ) : (
                 <form onSubmit={verifyOtp} className="space-y-4" noValidate>
-                  <p className="text-sm text-gray-500">
-                    OTP sent to <span className="font-medium text-gray-700">{otpSent.phone}</span> on WhatsApp.
-                  </p>
-                  {otpSent.demoOtp && (
-                    <div className="text-xs bg-amber-50 border border-amber-200 text-amber-700 rounded-lg p-2.5">
-                      DEMO MODE: WhatsApp connected nahi hai — OTP yahan dikh raha hai:{' '}
-                      <span className="font-mono font-bold tracking-wider">{otpSent.demoOtp}</span>
+                  {otpSent.whatsappLinked === false && (
+                    <div className="text-xs bg-amber-50 border border-amber-200 text-amber-800 rounded-lg p-2.5">
+                      WhatsApp number abhi linked nahi hai, isliye OTP is number par deliver nahi hoga.
+                      Admin se <span className="font-semibold">Integrations</span> page par QR scan karwa lein,
+                      phir yeh OTP WhatsApp par aayega.
                     </div>
+                  )}
+                  {otpSent.whatsappLinked !== false && (
+                    <p className="text-sm text-gray-500">
+                      OTP sent to <span className="font-medium text-gray-700">{otpSent.phone}</span> on WhatsApp.
+                    </p>
                   )}
                   {nameRequired && (
                     <Input
