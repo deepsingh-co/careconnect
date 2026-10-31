@@ -91,10 +91,10 @@ Open http://localhost:5173
 
 ## Integration Modes
 
-| Integration | Demo Mode (default) | Live Mode |
+| Integration | Unconfigured (default) | Configured / Live |
 |-------------|-------------------|-----------|
 | Database | Local MongoDB | MongoDB Atlas |
-| WhatsApp | Simulated (logged to console) | Meta Cloud API or Twilio |
+| WhatsApp | Simulated (until a number is linked) | Baileys (QR), Meta Cloud API or Twilio |
 | AI Intent | Deterministic keyword matching | OpenAI or Google Gemini |
 | Maps | Unavailable | Google Maps API |
 | Rides | Manual fulfillment | Configured ride provider |

@@ -52,7 +52,9 @@ async function sendViaServer(base, recipient, text) {
 
   const sent = await axios.post(`${base}/api/admin/whatsapp/channel/send`, { to: recipient, text }, auth);
   if (sent.data?.data?.demo) {
-    throw new Error('The server is in DEMO mode — the message was simulated. Flip the toggle to Live first.');
+    throw new Error(
+      'The message was simulated — no WhatsApp number is linked yet. Scan the QR in Admin → Integrations, then re-run.'
+    );
   }
   return sent.data?.data || {};
 }
@@ -69,7 +71,7 @@ async function main() {
 
   const provider = config.whatsapp.provider;
   console.log('--- WhatsApp config ---');
-  console.log('provider        :', provider || '(demo — NOT set)');
+  console.log('provider        :', provider || '(not set)');
   console.log('mode            :', whatsapp.mode);
   if (provider === 'meta') {
     console.log('phone number id :', config.whatsapp.meta.phoneNumberId || '(missing)');
@@ -79,11 +81,11 @@ async function main() {
   console.log('-----------------------');
 
   if (whatsapp.isDemo) {
-    console.error('\nFAIL: CareConnect is in demo mode, so nothing real is sent.');
+    console.error('\nFAIL: no WhatsApp number is linked, so nothing real is sent.');
     console.error(
       provider === 'baileys'
-        ? 'Link a number (Admin → Integrations) and switch the toggle to Live first.'
-        : 'Set WHATSAPP_PROVIDER (and credentials) in server/.env and switch to Live mode first.'
+        ? 'Scan the QR in Admin → Integrations to link a number, then re-run this script.'
+        : 'Set WHATSAPP_PROVIDER (and credentials) in server/.env, then re-run this script.'
     );
     process.exit(1);
   }
