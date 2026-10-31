@@ -181,6 +181,9 @@ exports.requestOtp = async (req, res, next) => {
         phone,
         expiresAt: record.expiresAt,
         existingUser: Boolean(existing),
+        // Honest signal for the UI: is there a real WhatsApp number that can
+        // actually deliver this OTP right now? (tests/simulator still get demoOtp)
+        whatsappLinked: !whatsappService.isDemo,
         ...(whatsappService.isDemo ? { demoOtp: otp } : {}),
       },
       ...(whatsappService.isDemo
