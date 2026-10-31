@@ -10,16 +10,10 @@ process.env.MONGODB_URI = process.env.TEST_MONGODB_URI || 'mongodb://localhost:2
 process.env.RATE_LIMIT_MAX = process.env.RATE_LIMIT_MAX || '10000';
 // The server folder may carry a real .env on dev machines (e.g. WHATSAPP_PROVIDER=
 // baileys after linking a number). Pin the provider off so this suite always
-// asserts the demo/no-provider behaviour — identical to CI, which has no .env.
+// asserts the not-yet-linked behaviour — identical to CI, which has no .env.
 process.env.WHATSAPP_PROVIDER = process.env.WHATSAPP_PROVIDER || '';
-// Same for the demo/live mode file: keep the suite's setMode() calls on a
-// scratch file so a real dev channel stays live after tests run.
-process.env.WHATSAPP_MODE_FILE =
-  process.env.WHATSAPP_MODE_FILE || `${require('os').tmpdir()}/careconnect-test-whatsapp-mode.json`;
 
 const request = require('supertest');
-const fs = require('fs');
-const path = require('path');
 const bcrypt = require('bcryptjs');
 
 // Import app before models are used
@@ -809,7 +803,8 @@ describe('Admin', () => {
   test('Admin can view integration status', async () => {
     const res = await request(app).get('/api/admin/integrations').set('Authorization', `Bearer ${adminToken}`);
     expect(res.status).toBe(200);
-    expect(res.body.data.whatsapp.status).toBe('demo_mode');
+    // No WhatsApp number is linked in CI, so the channel reports "awaiting setup".
+    expect(res.body.data.whatsapp.status).toBe('awaiting_setup');
     expect(res.body.data.ai.status).toBe('fallback_mode');
   });
 
@@ -827,63 +822,16 @@ describe('Admin', () => {
 });
 
 // ─── Admin · WhatsApp mode toggle ────────────────────────────────────────────
-describe('Admin · WhatsApp mode toggle', () => {
-  const MODE_FILE = path.resolve(__dirname, '../.whatsapp-mode.json');
-  const readModeFile = () => {
-    try { return fs.readFileSync(MODE_FILE, 'utf8'); } catch { return null; }
-  };
-  let modeFileSnapshot;
-
-  beforeAll(() => { modeFileSnapshot = readModeFile(); });
-
-  afterAll(() => {
-    if (modeFileSnapshot === null) {
-      try { fs.unlinkSync(MODE_FILE); } catch { /* nothing to clean up */ }
-    } else {
-      try { fs.writeFileSync(MODE_FILE, modeFileSnapshot); } catch { /* best effort */ }
-    }
-    whatsappService._mode = null; // restore the "auto" preference for later suites
-  });
-
-  test('Admin can switch WhatsApp to demo mode', async () => {
-    const res = await request(app).post('/api/admin/whatsapp/mode')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ mode: 'demo' });
-
-    expect(res.status).toBe(200);
-    expect(res.body.data.whatsapp.mode).toBe('demo');
-    expect(whatsappService.isDemo).toBe(true);
-    expect(res.body.data.whatsapp).toHaveProperty('missing');
-  });
-
-  test('Going live is refused while credentials are missing', async () => {
-    if (whatsappService.configured) return; // this env has real credentials — nothing to assert
-
+// The admin Demo/Live toggle was removed — WhatsApp is live-only once a number
+// is linked, with no runtime mode switch.
+describe('Admin · WhatsApp mode toggle removed', () => {
+  test('The mode-switching endpoint no longer exists', async () => {
     const res = await request(app).post('/api/admin/whatsapp/mode')
       .set('Authorization', `Bearer ${adminToken}`)
       .send({ mode: 'live' });
 
-    expect(res.status).toBe(400);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toMatch(/Cannot switch to live mode/);
-    expect(whatsappService.isDemo).toBe(true);
-  });
-
-  test('An unknown mode value is rejected', async () => {
-    const res = await request(app).post('/api/admin/whatsapp/mode')
-      .set('Authorization', `Bearer ${adminToken}`)
-      .send({ mode: 'production' });
-
-    expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/demo/);
-  });
-
-  test('Non-admins cannot switch the mode', async () => {
-    const res = await request(app).post('/api/admin/whatsapp/mode')
-      .set('Authorization', `Bearer ${providerToken}`)
-      .send({ mode: 'demo' });
-
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
+    expect(res.body.message).toMatch(/not found/i);
   });
 });
 
@@ -1215,25 +1163,15 @@ describe('Phone OTP Auth (children)', () => {
 // ─── WhatsApp · Baileys channel & production live-only rules ──────────────────
 describe('WhatsApp · Baileys channel & production live-only', () => {
   const baileysService = require('../src/services/baileysService');
-  const MODE_FILE = path.resolve(__dirname, '../.whatsapp-mode.json');
   let originalProvider;
-  let modeFileSnapshot;
 
   beforeAll(() => {
     originalProvider = whatsappService.provider;
-    try { modeFileSnapshot = fs.readFileSync(MODE_FILE, 'utf8'); } catch { modeFileSnapshot = null; }
   });
 
   afterEach(() => {
     jest.restoreAllMocks();
     whatsappService.provider = originalProvider;
-    whatsappService._mode = null;
-    // Never leave a mode file written by these tests behind.
-    if (modeFileSnapshot === null) {
-      try { fs.unlinkSync(MODE_FILE); } catch { /* nothing to clean up */ }
-    } else {
-      try { fs.writeFileSync(MODE_FILE, modeFileSnapshot); } catch { /* best effort */ }
-    }
   });
 
   test('JID and phone numbers normalise to the DB format', () => {
@@ -1251,44 +1189,39 @@ describe('WhatsApp · Baileys channel & production live-only', () => {
     expect(baileysService.extractText({ protocolMessage: {} })).toBeNull();
   });
 
-  test('Baileys without a linked session cannot go live (QR scan required)', () => {
+  test('Baileys without a linked session is not configured and stays simulated', () => {
     whatsappService.provider = 'baileys';
     jest.spyOn(baileysService, 'hasSession').mockReturnValue(false);
 
     expect(whatsappService.configured).toBe(false);
     expect(whatsappService.missingCredentials.join(' ')).toMatch(/QR/i);
-    expect(() => whatsappService.setMode('live')).toThrow(/Cannot switch to live mode/);
-    expect(() => whatsappService.setMode('live')).toThrow(/QR/i);
+    expect(whatsappService.isDemo).toBe(true); // simulates until the QR is scanned
+    expect(whatsappService.mode).toBe('demo');
   });
 
-  test('Baileys with a linked session is fully configured and can go live', () => {
+  test('Baileys with a linked session is fully configured and live', () => {
     whatsappService.provider = 'baileys';
     jest.spyOn(baileysService, 'hasSession').mockReturnValue(true);
 
     expect(whatsappService.configured).toBe(true);
     expect(whatsappService.missingCredentials).toEqual([]);
-
-    const status = whatsappService.setMode('live');
-    expect(status.mode).toBe('live');
-    expect(whatsappService.isDemo).toBe(false);
+    expect(whatsappService.isDemo).toBe(false); // no demo toggle — linked means live
+    expect(whatsappService.mode).toBe('live');
   });
 
   test('Sending while the number is not linked fails with a QR-scan error', async () => {
     whatsappService.provider = 'baileys';
-    whatsappService._mode = 'live';
     jest.spyOn(baileysService, 'hasSession').mockReturnValue(true);
 
     await expect(whatsappService.sendMessage('+919876543210', 'hi')).rejects.toThrow(/QR code/i);
   });
 
-  test('Production forces live mode and refuses demo', () => {
+  test('Production never runs in demo mode', () => {
     const isProd = jest.spyOn(config, 'isProd').mockReturnValue(true);
-    whatsappService._mode = 'demo'; // even an explicit saved demo preference is ignored
 
     expect(whatsappService.isDemo).toBe(false);
     expect(whatsappService.mode).toBe('live');
-    expect(whatsappService.getStatus().preference).toBe('live');
-    expect(() => whatsappService.setMode('demo')).toThrow(/production/i);
+    expect(whatsappService.getStatus().preference).toBeUndefined(); // the toggle's preference is gone
     expect(isProd).toHaveBeenCalled();
   });
 
