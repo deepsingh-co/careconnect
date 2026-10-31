@@ -196,17 +196,18 @@ exports.assignBooking = async (req, res, next) => {
 const buildWhatsappStatus = () => {
   const wa = whatsappService.getStatus();
   const status = {
-    status: wa.isDemo ? 'demo_mode' : 'configured',
+    // There is no demo/live toggle any more — a number is either linked (live)
+    // or still waiting to be paired (setup required).
+    status: wa.configured ? 'configured' : 'awaiting_setup',
     provider: wa.provider === 'demo' ? null : wa.provider,
     mode: wa.mode,
-    preference: wa.preference,
     configured: wa.configured,
     missing: wa.missing,
-    notice: wa.isDemo
-      ? wa.configured
-        ? 'DEMO MODE is switched on. Live credentials are present but no real WhatsApp messages are being sent.'
-        : 'DEMO MODE: No real WhatsApp messages will be sent.'
-      : null,
+    notice: wa.configured
+      ? null
+      : wa.provider === 'baileys'
+        ? 'WhatsApp number abhi link nahi hai — neeche QR scan karein.'
+        : `Live mode ke liye ${wa.missing.join(', ')} server/.env mein set karein.`,
   };
 
   // Baileys (WhatsApp Web) — live link state for the QR scanner UI.
@@ -273,29 +274,6 @@ exports.getIntegrationStatus = async (req, res) => {
 };
 
 /**
- * POST /api/admin/whatsapp/mode  { mode: 'demo' | 'live' }
- * Flips the WhatsApp sending mode at runtime (admin toggle in the UI).
- */
-exports.setWhatsappMode = async (req, res, next) => {
-  try {
-    const { mode } = req.body || {};
-    const status = whatsappService.setMode(mode);
-
-    AuditLog.create({
-      actor: req.user._id,
-      actorRole: 'admin',
-      action: `admin.whatsapp.mode.${status.mode}`,
-      resource: 'WhatsApp',
-      details: { mode: status.mode, provider: status.provider },
-    }).catch(() => {}); // audit must never break the toggle itself
-
-    res.json({ success: true, data: { whatsapp: status } });
-  } catch (err) {
-    next(err);
-  }
-};
-
-/**
  * GET /api/admin/whatsapp/channel
  * Baileys link state + QR (data-URL) for the admin scanner UI. Poll this while
  * the QR is on screen — WhatsApp refreshes the code periodically.
@@ -342,7 +320,9 @@ exports.sendWhatsappTest = async (req, res, next) => {
     res.json({
       success: true,
       data: result,
-      ...(result.demo ? { notice: 'Simulated (demo mode) — no real WhatsApp message was sent.' } : {}),
+      ...(result.demo
+        ? { notice: 'Simulated — WhatsApp number link nahi hai, isliye kuch bhi real nahi gaya.' }
+        : {}),
     });
   } catch (err) {
     next(err);

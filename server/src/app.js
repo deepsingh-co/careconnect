@@ -99,9 +99,9 @@ const start = async () => {
   startJobs();
 
   const wa = require('./services/whatsappService').getStatus();
-  let waLabel = wa.isDemo
-    ? `DEMO MODE${wa.configured ? '' : ` — missing ${wa.missing.join(', ')}`}`
-    : `LIVE (${wa.provider})`;
+  let waLabel = wa.configured
+    ? `LIVE (${wa.provider})`
+    : `NOT LINKED${wa.missing.length ? ` — missing ${wa.missing.join(', ')}` : ''}`;
 
   // Baileys (WhatsApp Web): pair a normal WhatsApp number by scanning a QR.
   if (config.whatsapp.provider === 'baileys') {
