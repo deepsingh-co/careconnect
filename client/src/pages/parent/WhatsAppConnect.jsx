@@ -74,11 +74,6 @@ export default function WhatsAppConnect() {
         </button>
       </header>
 
-      {/* Demo strip */}
-      <div className="bg-amber-100 text-amber-900 text-center text-xs py-1.5 px-3 shrink-0">
-        DEMO MODE — yeh WhatsApp ka simulated version hai. Koi real WhatsApp message nahi jata.
-      </div>
-
       {/* Messages */}
       <main className="flex-1 overflow-y-auto px-3 sm:px-6 py-4">
         <div className="max-w-2xl mx-auto space-y-2">
