@@ -30,12 +30,48 @@ const navLinks = [
 ];
 
 const features = [
-  { icon: Pill, title: 'Medicine Reminders', desc: 'WhatsApp reminders with one-tap acknowledgement. Family gets notified if a dose is missed.' },
-  { icon: HeartPulse, title: 'Daily Wellness Check-ins', desc: 'Automated daily check-ins. Parents reply with one word, family sees the status in real time.' },
-  { icon: Car, title: 'Ride Booking', desc: 'Request rides to hospitals, clinics or appointments. Family can book on behalf of parents.' },
-  { icon: UtensilsCrossed, title: 'Food & Grocery', desc: 'Order home-style meals and groceries through a simple WhatsApp message.' },
-  { icon: Home, title: 'Household Services', desc: 'Cleaning, gardening, car wash — verified local helpers at your doorstep.' },
-  { icon: Users, title: 'Family Coordination', desc: 'One shared dashboard. Everyone stays informed without constant phone calls.' },
+  {
+    icon: Pill,
+    title: 'Medicine reminders',
+    desc: 'WhatsApp reminders with one-tap acknowledgement. Family gets notified if a dose is missed.',
+    tag: 'Pill · dose · family alert',
+    accent: 'bg-care-50 text-care-600',
+  },
+  {
+    icon: HeartPulse,
+    title: 'Daily wellness check-ins',
+    desc: 'A simple daily check-in. Parents reply with one word, family sees the status in real time.',
+    tag: 'One-word replies',
+    accent: 'bg-care-green-soft text-care-green-dark',
+  },
+  {
+    icon: Car,
+    title: 'Ride booking',
+    desc: 'Request rides to hospitals, clinics or appointments. Family can book on behalf of parents.',
+    tag: 'Hospital · clinic · pharmacy',
+    accent: 'bg-care-50 text-care-600',
+  },
+  {
+    icon: UtensilsCrossed,
+    title: 'Food & grocery',
+    desc: 'Order home-style meals and groceries through a simple WhatsApp message.',
+    tag: 'Meals · groceries',
+    accent: 'bg-amber-50 text-amber-700',
+  },
+  {
+    icon: Home,
+    title: 'Household services',
+    desc: 'Cleaning, gardening, car wash — verified local helpers at your doorstep.',
+    tag: 'Verified local helpers',
+    accent: 'bg-care-100 text-care-700',
+  },
+  {
+    icon: Users,
+    title: 'Family coordination',
+    desc: 'One shared dashboard. Everyone stays informed without constant phone calls.',
+    tag: 'Shared dashboard',
+    accent: 'bg-care-green-soft text-care-green-dark',
+  },
 ];
 
 const faqs = [
@@ -399,26 +435,119 @@ export default function LandingPage() {
           </div>
         </section>
 
-      {/* Features */}
-      <section id="features" className="py-12 md:py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-4">Everything Your Family Needs</h2>
-          <p className="text-center text-gray-600 max-w-2xl mx-auto mb-8 md:mb-12">
-            From medication reminders to household services — one platform that keeps families connected and parents independent.
-          </p>
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {features.map((f) => (
-              <div key={f.title} className="bg-white rounded-2xl p-6 border border-gray-200 hover:border-teal-300 hover:shadow-md transition-all">
-                <div className="w-12 h-12 bg-teal-50 rounded-xl flex items-center justify-center mb-4">
-                  <f.icon size={24} className="text-teal-600" />
-                </div>
-                <h3 className="text-lg font-semibold text-[#1e3a5f] mb-2">{f.title}</h3>
-                <p className="text-gray-600 text-sm leading-relaxed">{f.desc}</p>
+        {/* Features */}
+        <section id="features" className="relative overflow-hidden bg-white py-20 md:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+              <div className="max-w-2xl">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-care-600">Everything in one place</p>
+                <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.03em] text-care-900 sm:text-4xl md:text-5xl">
+                  Six kinds of help. One family thread.
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-ink-muted sm:text-lg">
+                  From a missed dose to a ride to the clinic, CareConnect keeps the everyday logistics of care in one
+                  calm place.
+                </p>
               </div>
-            ))}
+              <Link
+                to="/auth/register"
+                className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-care-200 bg-white px-4 py-2.5 text-sm font-semibold text-care-700 shadow-sm transition-colors hover:border-care-300 hover:bg-care-50"
+              >
+                Start free
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            </div>
+
+            <div className="mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+              {features.map((f, i) => (
+                <article
+                  key={f.title}
+                  className={`group relative overflow-hidden rounded-3xl border border-care-100 bg-white p-6 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-care-200 hover:shadow-lg hover:shadow-care-900/5 ${
+                    i === 0 ? 'md:col-span-2 lg:col-span-2' : ''
+                  } ${i === 5 ? 'md:col-span-2 lg:col-span-3' : ''}`}
+                >
+                  <div className={i === 5 ? 'lg:flex lg:items-center lg:gap-10' : ''}>
+                    <div className={i === 5 ? 'lg:max-w-md' : ''}>
+                      <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${f.accent}`}>
+                        <f.icon className="h-6 w-6" aria-hidden="true" />
+                      </div>
+                      <h3 className="mt-5 font-display text-xl font-bold tracking-tight text-care-900">{f.title}</h3>
+                      <p className="mt-2 text-sm leading-relaxed text-ink-muted">{f.desc}</p>
+                      <p className="mt-4 inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-[0.12em] text-care-600">
+                        <Check className="h-3.5 w-3.5 text-care-green" aria-hidden="true" />
+                        {f.tag}
+                      </p>
+                    </div>
+
+                    {i === 5 && (
+                      <div className="mt-6 flex-1 rounded-2xl border border-care-100 bg-care-50/70 p-4 lg:mt-0">
+                        <div className="flex items-center justify-between gap-3">
+                          <p className="text-xs font-bold uppercase tracking-[0.14em] text-ink-muted">Family dashboard</p>
+                          <span className="inline-flex items-center gap-1.5 rounded-full bg-care-green-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-care-green-dark">
+                            <span className="h-1.5 w-1.5 rounded-full bg-care-green" aria-hidden="true" />
+                            Live
+                          </span>
+                        </div>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                          {[
+                            { icon: Pill, label: 'Medicine', value: 'Taken · 8:02 AM' },
+                            { icon: HeartPulse, label: 'Wellness', value: 'All good today' },
+                            { icon: Car, label: 'Ride', value: 'Tomorrow · 10 AM' },
+                          ].map((item) => (
+                            <div key={item.label} className="flex items-center gap-2.5 rounded-xl bg-white p-2.5 shadow-sm">
+                              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-care-50 text-care-600">
+                                <item.icon className="h-4 w-4" aria-hidden="true" />
+                              </span>
+                              <div className="min-w-0">
+                                <p className="text-[10px] font-bold uppercase tracking-wide text-ink-muted">{item.label}</p>
+                                <p className="truncate text-xs font-bold text-care-900">{item.value}</p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="mt-3 flex items-center gap-2">
+                          {['P', 'R', 'A'].map((initial) => (
+                            <span
+                              key={initial}
+                              className="flex h-6 w-6 items-center justify-center rounded-full bg-care-600 text-[9px] font-bold text-white ring-2 ring-white"
+                            >
+                              {initial}
+                            </span>
+                          ))}
+                          <span className="text-[11px] font-medium text-ink-muted">3 family members can see this</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {i === 0 && (
+                    <div className="mt-6 rounded-2xl border border-care-100 bg-care-50/70 p-4">
+                      <div className="flex items-center gap-3">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-care-600 shadow-sm">
+                          <Pill className="h-5 w-5" aria-hidden="true" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-bold text-care-900">Morning medicine</p>
+                          <p className="text-xs font-medium text-ink-muted">Metformin 500 mg · 8:00 AM</p>
+                        </div>
+                        <span className="rounded-full bg-care-green-soft px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-care-green-dark">
+                          Taken
+                        </span>
+                      </div>
+                      <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-care-100 pt-3 text-xs text-ink-muted">
+                        <span className="flex items-center gap-1.5">
+                          <CheckCheck className="h-4 w-4 text-care-green" aria-hidden="true" />
+                          Confirmed on WhatsApp
+                        </span>
+                        <span className="font-semibold text-care-700">Family notified</span>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* Safety & Trust */}
       <section className="bg-[#1e3a5f] py-12 md:py-20">
