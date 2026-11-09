@@ -10,6 +10,8 @@ import {
   HeartPulse,
   Home,
   LockKeyhole,
+  Mail,
+  MapPin,
   Menu,
   MessageCircle,
   Phone,
@@ -26,6 +28,8 @@ import {
 } from 'lucide-react';
 import Logo from '../../components/Logo';
 import AnimatedFlow from '../../components/AnimatedFlow';
+
+const currentYear = new Date().getFullYear();
 
 const navLinks = [
   { href: '#how-it-works', label: 'How it works' },
@@ -412,13 +416,11 @@ export default function LandingPage() {
                 { value: '0', label: 'apps for parents' },
                 { value: '3', label: 'languages understood' },
               ].map((stat) => (
-                <div key={stat.label} className="flex flex-col items-center text-center sm:px-4">
-                  <dd className="order-1 font-display text-3xl font-bold tracking-tight text-care-800 sm:text-4xl">
+                <div key={stat.label} className="flex flex-col-reverse items-center gap-1 text-center sm:px-4">
+                  <dt className="text-xs font-semibold leading-snug text-ink-muted sm:text-sm">{stat.label}</dt>
+                  <dd className="font-display text-3xl font-bold tracking-tight text-care-800 sm:text-4xl">
                     {stat.value}
                   </dd>
-                  <dt className="order-2 mt-1 text-xs font-semibold leading-snug text-ink-muted sm:text-sm">
-                    {stat.label}
-                  </dt>
                 </div>
               ))}
             </dl>
@@ -707,7 +709,7 @@ export default function LandingPage() {
                 Sign in
               </Link>
             </div>
-            <p className="mt-5 text-xs font-medium text-care-200">
+            <p className="mt-5 text-xs font-medium text-care-100">
               Parents only need WhatsApp. The dashboard is for children, providers and admins.
             </p>
           </div>
@@ -716,39 +718,79 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-[#162d4a] text-gray-300 py-12">
-        <div className="max-w-7xl mx-auto px-4 grid md:grid-cols-3 gap-8">
-          <div>
-            <div className="flex items-center gap-2 mb-3">
-              <Logo size={28} />
-              <span className="text-white font-bold text-lg">CareConnect</span>
+      <footer className="bg-care-950 text-care-100">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+          <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-[1.5fr_1fr_1fr_1.3fr]">
+            <div>
+              <Link to="/" className="inline-flex items-center gap-3 rounded-xl" aria-label="CareConnect home">
+                <Logo size={32} />
+                <span className="font-display text-lg font-bold text-white">
+                  Care<span className="text-care-300">Connect</span>
+                </span>
+              </Link>
+              <p className="mt-4 max-w-xs text-sm leading-relaxed text-care-200/80">
+                WhatsApp-based coordination for families caring for elderly parents living independently.
+              </p>
+              <a
+                href="tel:112"
+                className="mt-5 inline-flex min-h-10 items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-semibold text-care-100 transition-colors hover:bg-white/10"
+              >
+                <PhoneCall className="h-3.5 w-3.5 text-care-300" aria-hidden="true" />
+                Medical emergency? Call 112
+              </a>
             </div>
-            <p className="text-sm text-gray-400">WhatsApp-based smart elderly care and healthcare coordination platform.</p>
+
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-care-300">Product</h3>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li><a href="#how-it-works" className="text-care-200 transition-colors hover:text-white">How it works</a></li>
+                <li><a href="#features" className="text-care-200 transition-colors hover:text-white">Features</a></li>
+                <li><a href="#safety" className="text-care-200 transition-colors hover:text-white">Safety & privacy</a></li>
+                <li><a href="#faq" className="text-care-200 transition-colors hover:text-white">FAQ</a></li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-care-300">Account</h3>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li><Link to="/auth/login" className="text-care-200 transition-colors hover:text-white">Sign in</Link></li>
+                <li><Link to="/auth/register" className="text-care-200 transition-colors hover:text-white">Create account</Link></li>
+                <li><Link to="/contact" className="text-care-200 transition-colors hover:text-white">Contact us</Link></li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-[0.16em] text-care-300">Contact & legal</h3>
+              <ul className="mt-4 space-y-3 text-sm">
+                <li>
+                  <a href="tel:+919653203776" className="flex items-start gap-2 text-care-200 transition-colors hover:text-white">
+                    <Phone className="mt-0.5 h-4 w-4 shrink-0 text-care-400" aria-hidden="true" />
+                    +91 96532 03776
+                  </a>
+                </li>
+                <li>
+                  <a href="mailto:deepsinghcode@gmail.com" className="flex items-start gap-2 break-all text-care-200 transition-colors hover:text-white">
+                    <Mail className="mt-0.5 h-4 w-4 shrink-0 text-care-400" aria-hidden="true" />
+                    deepsinghcode@gmail.com
+                  </a>
+                </li>
+                <li className="flex items-start gap-2 text-care-200">
+                  <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-care-400" aria-hidden="true" />
+                  Jaipur, Rajasthan, India
+                </li>
+                <li><Link to="/privacy" className="text-care-200 transition-colors hover:text-white">Privacy Policy</Link></li>
+                <li><Link to="/about" className="text-care-200 transition-colors hover:text-white">About Us</Link></li>
+                <li><a href="#safety" className="text-care-200 transition-colors hover:text-white">Medical Disclaimer</a></li>
+              </ul>
+            </div>
           </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3">Contact</h4>
-            <ul className="space-y-2 text-sm">
-              <li className="flex items-center gap-2">
-                <Phone size={14} />
-                <a href="tel:+919653203776" className="hover:text-white">+91 96532 03776</a>
-              </li>
-              <li>📧 <a href="mailto:deepsinghcode@gmail.com" className="hover:text-white">deepsinghcode@gmail.com</a></li>
-              <li>📍 Jaipur, Rajasthan, India</li>
-              <li><Link to="/contact" className="text-teal-300 hover:text-white">Contact page →</Link></li>
-            </ul>
+
+          <div className="mt-12 border-t border-white/10 pt-6">
+            <p className="text-xs leading-relaxed text-care-300/80">
+              © {currentYear} CareConnect. CareConnect coordinates care — it does not provide medical
+              diagnosis, treatment, or emergency dispatch services. In a medical emergency, call 112 immediately.
+            </p>
           </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3">Legal</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link to="/privacy" className="hover:text-white">Privacy Policy</Link></li>
-              <li><Link to="/about" className="hover:text-white">About Us</Link></li>
-              <li><Link to="/contact" className="hover:text-white">Contact</Link></li>
-              <li><a href="#safety" className="hover:text-white">Medical Disclaimer</a></li>
-            </ul>
-          </div>
-        </div>
-        <div className="max-w-7xl mx-auto px-4 mt-8 pt-6 border-t border-white/10 text-sm text-gray-500">
-          © {new Date().getFullYear()} CareConnect. CareConnect does not provide medical diagnosis, treatment, or emergency dispatch services. In a medical emergency, call 112 immediately.
         </div>
       </footer>
     </div>
