@@ -362,15 +362,42 @@ export default function LandingPage() {
         </section>
 
         {/* How it works */}
-      <section id="how-it-works" className="bg-gray-50 py-12 md:py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-3">How It Works</h2>
-          <p className="text-center text-gray-600 max-w-2xl mx-auto mb-8 md:mb-12">
-            One WhatsApp message from a parent — and the whole family is quietly in sync.
-          </p>
-          <AnimatedFlow />
-        </div>
-      </section>
+        <section id="how-it-works" className="relative py-20 md:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-2xl text-center">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-care-600">How it works</p>
+              <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.03em] text-care-900 sm:text-4xl md:text-5xl">
+                One WhatsApp message. Everyone in sync.
+              </h2>
+              <p className="mt-4 text-base leading-relaxed text-ink-muted sm:text-lg">
+                Parents keep the conversation they already know. CareConnect handles the coordination behind it.
+              </p>
+            </div>
+
+            <div className="mt-12 md:mt-16">
+              <AnimatedFlow />
+            </div>
+
+            <div className="mt-10 flex flex-col items-start gap-4 rounded-2xl border border-care-100 bg-white/80 p-5 shadow-sm sm:flex-row sm:items-center">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-care-50 text-care-600">
+                <Smartphone className="h-5 w-5" aria-hidden="true" />
+              </span>
+              <div>
+                <p className="font-bold text-care-900">Parents never install an app</p>
+                <p className="text-sm text-ink-muted">
+                  A normal phone with WhatsApp is enough. No password, no new device, no learning curve.
+                </p>
+              </div>
+              <a
+                href="#features"
+                className="inline-flex min-h-11 items-center gap-2 rounded-xl px-3 text-sm font-semibold text-care-700 transition-colors hover:bg-care-50 hover:text-care-800 sm:ml-auto"
+              >
+                Explore features
+                <ArrowRight className="h-4 w-4" aria-hidden="true" />
+              </a>
+            </div>
+          </div>
+        </section>
 
       {/* Features */}
       <section id="features" className="py-12 md:py-20">
