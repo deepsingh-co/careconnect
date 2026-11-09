@@ -15,6 +15,7 @@ import {
   Phone,
   PhoneCall,
   Pill,
+  Plus,
   Send,
   ShieldCheck,
   Smartphone,
@@ -632,34 +633,85 @@ export default function LandingPage() {
           </div>
         </section>
 
-      {/* FAQ */}
-      <section id="faq" className="py-12 md:py-20">
-        <div className="max-w-3xl mx-auto px-4">
-          <h2 className="text-2xl md:text-3xl font-bold text-center text-[#1e3a5f] mb-8 md:mb-12">Frequently Asked Questions</h2>
-          <div className="space-y-4">
-            {faqs.map((f) => (
-              <details key={f.q} className="bg-white rounded-xl border border-gray-200 p-5 group">
-                <summary className="font-semibold text-[#1e3a5f] cursor-pointer flex items-center justify-between list-none">
-                  {f.q}
-                  <span className="text-teal-600 group-open:rotate-45 transition-transform text-xl leading-none">+</span>
-                </summary>
-                <p className="mt-3 text-gray-600 leading-relaxed">{f.a}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
+        {/* FAQ */}
+        <section id="faq" className="bg-white py-20 md:py-28">
+          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+              <div className="lg:sticky lg:top-28 lg:self-start">
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-care-600">Questions, answered</p>
+                <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.03em] text-care-900 sm:text-4xl md:text-5xl">
+                  A few things families ask us.
+                </h2>
+                <p className="mt-4 text-base leading-relaxed text-ink-muted">
+                  Can’t find your answer? We’re a small team and we read every message.
+                </p>
+                <Link
+                  to="/contact"
+                  className="mt-6 inline-flex min-h-11 items-center gap-2 rounded-xl border border-care-200 bg-care-50 px-4 py-2.5 text-sm font-semibold text-care-700 transition-colors hover:border-care-300 hover:bg-white"
+                >
+                  <MessageCircle className="h-4 w-4" aria-hidden="true" />
+                  Talk to us
+                </Link>
+              </div>
 
-      {/* CTA */}
-      <section className="bg-teal-600 py-12 md:py-16">
-        <div className="max-w-3xl mx-auto px-4 text-center">
-          <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Ready to stay connected?</h2>
-          <p className="text-teal-100 mb-8">Create your family account in minutes. No credit card required.</p>
-          <Link to="/auth/register" className="bg-white text-teal-700 px-6 sm:px-8 py-3.5 sm:py-4 rounded-xl text-base sm:text-lg font-semibold hover:bg-teal-50 inline-flex items-center gap-2">
-            Get Started Free <ArrowRight size={20} />
-          </Link>
-        </div>
-      </section>
+              <div className="space-y-3">
+                {faqs.map((f) => (
+                  <details
+                    key={f.q}
+                    className="group rounded-2xl border border-care-100 bg-care-50/60 p-5 transition-colors open:border-care-200 open:bg-white open:shadow-sm"
+                  >
+                    <summary className="flex cursor-pointer list-none items-center justify-between gap-4 text-left font-bold text-care-900 [&::-webkit-details-marker]:hidden">
+                      <span>{f.q}</span>
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white text-care-600 shadow-sm transition-transform duration-200 group-open:rotate-45">
+                        <Plus className="h-4 w-4" aria-hidden="true" />
+                      </span>
+                    </summary>
+                    <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-muted sm:text-base">{f.a}</p>
+                  </details>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CTA */}
+        <section className="relative overflow-hidden bg-care-600 py-16 text-white md:py-24">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <div className="absolute -right-20 -top-24 h-80 w-80 rounded-full border-[24px] border-white/10" />
+            <div className="absolute -bottom-24 -left-20 h-80 w-80 rounded-full border-[24px] border-white/10" />
+          </div>
+
+          <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-3 py-1.5 text-xs font-bold uppercase tracking-[0.16em] text-white backdrop-blur">
+              <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+              Start in minutes
+            </span>
+            <h2 className="mt-5 font-display text-3xl font-bold tracking-[-0.03em] text-white sm:text-4xl md:text-5xl">
+              Ready to stay connected?
+            </h2>
+            <p className="mx-auto mt-4 max-w-2xl text-base leading-relaxed text-care-100 sm:text-lg">
+              Create your family account in minutes. No credit card. No app for parents — just WhatsApp.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link
+                to="/auth/register"
+                className="group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-care-green-dark px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-care-950/20 transition-all hover:-translate-y-0.5 hover:bg-[#166534]"
+              >
+                Create your free account
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+              <Link
+                to="/auth/login"
+                className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/30 bg-white/5 px-6 py-3.5 text-base font-semibold text-white backdrop-blur transition-colors hover:bg-white/10"
+              >
+                Sign in
+              </Link>
+            </div>
+            <p className="mt-5 text-xs font-medium text-care-200">
+              Parents only need WhatsApp. The dashboard is for children, providers and admins.
+            </p>
+          </div>
+        </section>
 
       </main>
 
