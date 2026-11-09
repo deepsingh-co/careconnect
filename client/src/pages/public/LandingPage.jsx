@@ -2,19 +2,23 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   ArrowRight,
+  ArrowUpRight,
   Car,
   Check,
   CheckCheck,
+  FileCheck2,
   HeartPulse,
   Home,
+  LockKeyhole,
   Menu,
   MessageCircle,
   Phone,
   PhoneCall,
   Pill,
   Send,
-  Shield,
+  ShieldCheck,
   Smartphone,
+  Stethoscope,
   Users,
   UtensilsCrossed,
   X,
@@ -71,6 +75,29 @@ const features = [
     desc: 'One shared dashboard. Everyone stays informed without constant phone calls.',
     tag: 'Shared dashboard',
     accent: 'bg-care-green-soft text-care-green-dark',
+  },
+];
+
+const trustPillars = [
+  {
+    icon: LockKeyhole,
+    title: 'Consent-based sharing',
+    desc: 'Parents control what family members can see and do — and can change it at any time.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Role-based access',
+    desc: 'Strict server-side authorization keeps every role in its lane.',
+  },
+  {
+    icon: Stethoscope,
+    title: 'Not a medical device',
+    desc: 'We coordinate care. We never diagnose, treat or prescribe.',
+  },
+  {
+    icon: FileCheck2,
+    title: 'Full audit trail',
+    desc: 'Support access is logged, reviewed and traceable.',
   },
 ];
 
@@ -549,34 +576,61 @@ export default function LandingPage() {
           </div>
         </section>
 
-      {/* Safety & Trust */}
-      <section className="bg-[#1e3a5f] py-12 md:py-20">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <Shield size={40} className="text-teal-400 mx-auto mb-4" />
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">Safety, Privacy & Trust</h2>
-            <p className="text-gray-300 leading-relaxed mb-8">
-              CareConnect is built with healthcare-grade privacy standards. Consent-based family sharing, encrypted data,
-              role-based access, and full audit trails. We never sell data, never claim to replace medical professionals,
-              and clearly label all demo and simulated features.
-            </p>
-            <div className="grid sm:grid-cols-3 gap-6 text-left">
-              <div className="bg-white/10 rounded-xl p-5">
-                <h4 className="text-teal-300 font-semibold mb-1">Consent-Based</h4>
-                <p className="text-gray-300 text-sm">Parents control what family members can see and do.</p>
+        {/* Safety & Trust */}
+        <section id="safety" className="relative overflow-hidden bg-care-900 py-20 text-white md:py-28">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+            <div className="absolute -right-20 -top-24 h-96 w-96 rounded-full bg-care-600/30 blur-3xl" />
+            <div className="absolute -bottom-24 -left-20 h-96 w-96 rounded-full bg-care-green/10 blur-3xl" />
+          </div>
+
+          <div className="relative mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div className="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center lg:gap-16">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-care-300">Safety, privacy & trust</p>
+                <h2 className="mt-3 font-display text-3xl font-bold tracking-[-0.03em] text-white sm:text-4xl md:text-5xl">
+                  Peace of mind is part of the product.
+                </h2>
+                <p className="mt-5 max-w-xl text-base leading-relaxed text-care-100/85 sm:text-lg">
+                  CareConnect is built around consent, clear roles and a full audit trail. Parents decide what is shared.
+                  Family members only see what they need. We never sell data and never pretend to replace a doctor.
+                </p>
+                <Link
+                  to="/privacy"
+                  className="mt-7 inline-flex min-h-11 items-center gap-2 rounded-xl border border-white/15 bg-white/10 px-4 py-2.5 text-sm font-semibold text-white backdrop-blur transition-colors hover:bg-white/15"
+                >
+                  Read our privacy policy
+                  <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
               </div>
-              <div className="bg-white/10 rounded-xl p-5">
-                <h4 className="text-teal-300 font-semibold mb-1">Role-Based Access</h4>
-                <p className="text-gray-300 text-sm">Strict server-side authorization. No data leaks.</p>
-              </div>
-              <div className="bg-white/10 rounded-xl p-5">
-                <h4 className="text-teal-300 font-semibold mb-1">Not a Medical Device</h4>
-                <p className="text-gray-300 text-sm">We coordinate care — we never diagnose or prescribe.</p>
+
+              <div className="grid gap-4 sm:grid-cols-2">
+                {trustPillars.map((pillar) => (
+                  <div
+                    key={pillar.title}
+                    className="rounded-3xl border border-white/10 bg-white/[0.06] p-5 backdrop-blur transition-colors hover:border-white/20 hover:bg-white/[0.09]"
+                  >
+                    <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-care-300/10 text-care-300">
+                      <pillar.icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-4 font-display text-lg font-bold text-white">{pillar.title}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-care-100/85">{pillar.desc}</p>
+                  </div>
+                ))}
               </div>
             </div>
+
+            <ul className="mt-12 grid gap-3 border-t border-white/10 pt-8 sm:grid-cols-2 lg:grid-cols-4">
+              {['Encrypted in transit', 'Consent-based sharing', 'Role-based access', 'Audit logged'].map((item) => (
+                <li key={item} className="flex items-center gap-2 text-sm font-semibold text-care-100">
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-care-green/15 text-care-green">
+                    <Check className="h-3.5 w-3.5" aria-hidden="true" />
+                  </span>
+                  {item}
+                </li>
+              ))}
+            </ul>
           </div>
-        </div>
-      </section>
+        </section>
 
       {/* FAQ */}
       <section id="faq" className="py-12 md:py-20">
