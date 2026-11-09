@@ -338,6 +338,29 @@ export default function LandingPage() {
           </div>
         </section>
 
+        <section aria-label="CareConnect at a glance" className="border-y border-care-100 bg-white/80">
+          <div className="mx-auto flex max-w-7xl flex-col gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:items-center lg:gap-12 lg:px-8 lg:py-10">
+            <p className="shrink-0 text-sm font-bold uppercase tracking-[0.16em] text-care-600">Care, coordinated</p>
+            <dl className="grid flex-1 grid-cols-2 gap-x-6 gap-y-7 sm:grid-cols-4 sm:divide-x sm:divide-care-100">
+              {[
+                { value: '6', label: 'services in one place' },
+                { value: '1', label: 'WhatsApp thread' },
+                { value: '0', label: 'apps for parents' },
+                { value: '3', label: 'languages understood' },
+              ].map((stat) => (
+                <div key={stat.label} className="flex flex-col items-center text-center sm:px-4">
+                  <dd className="order-1 font-display text-3xl font-bold tracking-tight text-care-800 sm:text-4xl">
+                    {stat.value}
+                  </dd>
+                  <dt className="order-2 mt-1 text-xs font-semibold leading-snug text-ink-muted sm:text-sm">
+                    {stat.label}
+                  </dt>
+                </div>
+              ))}
+            </dl>
+          </div>
+        </section>
+
         {/* How it works */}
       <section id="how-it-works" className="bg-gray-50 py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-4">
