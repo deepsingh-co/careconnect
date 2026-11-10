@@ -103,11 +103,11 @@ export default function RemindersPage() {
 
       <div className="flex gap-2 mb-4">
         <button onClick={() => setTab('active')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'active' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'active' ? 'bg-care-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
           Active ({reminders.filter(r => r.isActive).length})
         </button>
         <button onClick={() => setTab('history')}
-          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'history' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+          className={`px-4 py-2 rounded-lg text-sm font-medium ${tab === 'history' ? 'bg-care-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
           <span className="flex items-center gap-1"><History size={14} /> History</span>
         </button>
         <div className="flex-1" />
@@ -150,7 +150,7 @@ export default function RemindersPage() {
           <div className="space-y-3">
             {reminders.map((r) => (
               <Card key={r._id} className="p-4 flex flex-col sm:flex-row sm:items-center gap-3">
-                <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600 shrink-0">
+                <div className="w-10 h-10 bg-care-50 rounded-xl flex items-center justify-center text-care-600 shrink-0">
                   <Pill size={20} />
                 </div>
                 <div className="flex-1 min-w-0">

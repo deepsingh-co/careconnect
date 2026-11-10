@@ -105,7 +105,7 @@ export default function AdminIntegrationsPage() {
               <Card key={key} className="p-5">
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-teal-50 rounded-xl flex items-center justify-center text-teal-600">
+                    <div className="w-10 h-10 bg-care-50 rounded-xl flex items-center justify-center text-care-600">
                       <Icon size={20} />
                     </div>
                     <div>
@@ -123,7 +123,7 @@ export default function AdminIntegrationsPage() {
                       {channel && (
                         <span
                           className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
-                            channelState === 'open' ? 'bg-teal-50 text-teal-700' : 'bg-amber-50 text-amber-700'
+                            channelState === 'open' ? 'bg-care-50 text-care-700' : 'bg-amber-50 text-amber-700'
                           }`}
                         >
                           {channelState === 'open'
@@ -156,7 +156,7 @@ export default function AdminIntegrationsPage() {
                     )}
 
                     {channelState === 'open' && (
-                      <p className="text-xs text-teal-700 bg-teal-50 rounded-lg p-2">
+                      <p className="text-xs text-care-700 bg-care-50 rounded-lg p-2">
                         {channel.phone || 'Number'} linked — parent ke messages ka real reply yahin se jayega.
                       </p>
                     )}
@@ -169,7 +169,7 @@ export default function AdminIntegrationsPage() {
                       type="button"
                       onClick={relinkChannel}
                       disabled={relinking}
-                      className="mt-2 text-xs font-semibold text-teal-600 hover:text-teal-700 disabled:opacity-50"
+                      className="mt-2 text-xs font-semibold text-care-600 hover:text-care-700 disabled:opacity-50"
                     >
                       {relinking
                         ? 'Generating…'

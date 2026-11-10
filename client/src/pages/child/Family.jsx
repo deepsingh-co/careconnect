@@ -82,7 +82,7 @@ export default function FamilyPage() {
   return (
     <div>
       <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+        <div className="h-11 w-11 rounded-xl bg-care-50 text-care-600 flex items-center justify-center">
           <Users size={22} />
         </div>
         <div>
@@ -112,15 +112,15 @@ export default function FamilyPage() {
                   <Link2 size={16} className="mr-1" /> Generate invitation code
                 </Button>
               ) : (
-                <div className="border border-teal-200 bg-teal-50 rounded-xl p-4">
-                  <div className="text-xs text-teal-700 uppercase font-semibold tracking-wide">Invitation code</div>
+                <div className="border border-care-200 bg-care-50 rounded-xl p-4">
+                  <div className="text-xs text-care-700 uppercase font-semibold tracking-wide">Invitation code</div>
                   <div className="flex items-center gap-3 mt-2">
                     <div className="text-2xl font-mono font-bold text-[#0f766e] tracking-wider">{invite.code}</div>
-                    <button onClick={() => copy(invite.code)} className="p-2 rounded hover:bg-teal-100" title="Copy">
-                      {copied ? <Check size={16} className="text-teal-700" /> : <Copy size={16} className="text-teal-700" />}
+                    <button onClick={() => copy(invite.code)} className="p-2 rounded hover:bg-care-100" title="Copy">
+                      {copied ? <Check size={16} className="text-care-700" /> : <Copy size={16} className="text-care-700" />}
                     </button>
                   </div>
-                  <div className="text-xs text-teal-700 mt-2">
+                  <div className="text-xs text-care-700 mt-2">
                     Expires: {new Date(invite.expiresAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}
                   </div>
                 </div>
@@ -206,7 +206,7 @@ export default function FamilyPage() {
                               type="checkbox"
                               checked={l.permissions?.[key] ?? false}
                               onChange={() => togglePermission(l, key)}
-                              className="h-4 w-4 rounded border-gray-300 text-teal-600 focus:ring-teal-500"
+                              className="h-4 w-4 rounded border-gray-300 text-care-600 focus:ring-care-500"
                             />
                             {label}
                           </label>

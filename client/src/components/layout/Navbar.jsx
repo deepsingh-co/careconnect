@@ -40,7 +40,7 @@ export default function Navbar() {
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
             <Link to="/" className="flex items-center gap-2" aria-label="CareConnect Home">
-              <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-care-600 flex items-center justify-center">
                 <Heart className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-bold text-navy-900 hidden sm:block">CareConnect</span>
@@ -54,7 +54,7 @@ export default function Navbar() {
                   className={({ isActive }) =>
                     `flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
                       isActive
-                        ? 'bg-teal-50 text-teal-700'
+                        ? 'bg-care-50 text-care-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`
                   }
@@ -86,8 +86,8 @@ export default function Navbar() {
                     aria-expanded={profileOpen}
                     aria-haspopup="true"
                   >
-                    <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center">
-                      <User className="w-5 h-5 text-teal-700" />
+                    <div className="w-8 h-8 rounded-full bg-care-100 flex items-center justify-center">
+                      <User className="w-5 h-5 text-care-700" />
                     </div>
                     <span className="hidden sm:block text-sm font-medium text-gray-700">{user.name}</span>
                   </button>
@@ -130,7 +130,7 @@ export default function Navbar() {
                   className={({ isActive }) =>
                     `flex items-center gap-3 px-3 py-2.5 rounded-lg text-base font-medium ${
                       isActive
-                        ? 'bg-teal-50 text-teal-700'
+                        ? 'bg-care-50 text-care-700'
                         : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                     }`
                   }
@@ -147,7 +147,7 @@ export default function Navbar() {
           <div className="absolute right-4 top-full mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-200 z-50">
             <div className="p-3 border-b border-gray-100 flex items-center justify-between">
               <h3 className="font-medium text-gray-900">Notifications</h3>
-              <button className="text-sm text-teal-600 hover:underline">Mark all read</button>
+              <button className="text-sm text-care-600 hover:underline">Mark all read</button>
             </div>
             <div className="max-h-64 overflow-y-auto">
               <div className="p-4 text-center text-gray-500 text-sm">No new notifications</div>

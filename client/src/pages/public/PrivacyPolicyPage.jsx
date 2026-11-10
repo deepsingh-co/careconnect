@@ -95,7 +95,7 @@ export default function PrivacyPolicyPage() {
           <li>Withdrawal of consent — you can stop using the service at any time.</li>
         </ul>
         <p>
-          To exercise any of these rights, email <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a>.
+          To exercise any of these rights, email <a href={`mailto:${CONTACT_EMAIL}`} className="text-care-700 hover:underline">{CONTACT_EMAIL}</a>.
           We respond within a reasonable time and may verify your identity first.
         </p>
       </Section>
@@ -125,9 +125,9 @@ export default function PrivacyPolicyPage() {
       <Section title="12. Contact us">
         <p>
           Questions about this policy or your data? Write to{' '}
-          <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a>, call{' '}
-          <a href="tel:+919653203776" className="text-teal-700 hover:underline">{CONTACT_PHONE}</a>, or use the{' '}
-          <Link to="/contact" className="text-teal-700 hover:underline">contact page</Link>. We aim to respond within 1–2
+          <a href={`mailto:${CONTACT_EMAIL}`} className="text-care-700 hover:underline">{CONTACT_EMAIL}</a>, call{' '}
+          <a href="tel:+919653203776" className="text-care-700 hover:underline">{CONTACT_PHONE}</a>, or use the{' '}
+          <Link to="/contact" className="text-care-700 hover:underline">contact page</Link>. We aim to respond within 1–2
           business days.
         </p>
       </Section>

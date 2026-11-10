@@ -131,7 +131,7 @@ export default function Reminders() {
 
       {/* Pending acknowledgements */}
       {!history.loading && pendingEvents.length > 0 && (
-        <Card className="p-5 mt-4 border-teal-200">
+        <Card className="p-5 mt-4 border-care-200">
           <h2 className="font-semibold text-[#1e3a5f] mb-1">Awaiting your response</h2>
           <p className="text-sm text-gray-500 mb-4">
             These reminders have not been acknowledged yet.
@@ -235,8 +235,8 @@ export default function Reminders() {
                       }
                       className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                         form.activeDays.includes(d)
-                          ? 'bg-teal-600 text-white border-teal-600'
-                          : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                          ? 'bg-care-600 text-white border-care-600'
+                          : 'bg-white text-gray-600 border-gray-300 hover:border-care-400'
                       }`}
                     >
                       {d.toUpperCase()}
@@ -304,9 +304,9 @@ export default function Reminders() {
                         <button
                           onClick={() => toggle(r)}
                           title={r.isActive ? 'Disable' : 'Enable'}
-                          className="p-2 text-gray-500 hover:text-teal-600 transition-colors"
+                          className="p-2 text-gray-500 hover:text-care-600 transition-colors"
                         >
-                          {r.isActive ? <ToggleRight size={22} className="text-teal-600" /> : <ToggleLeft size={22} />}
+                          {r.isActive ? <ToggleRight size={22} className="text-care-600" /> : <ToggleLeft size={22} />}
                         </button>
                         <button
                           onClick={() => remove(r)}

@@ -48,7 +48,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8">
           <div className="lg:col-span-2">
             <Link to="/" className="flex items-center gap-2 mb-4" aria-label="CareConnect Home">
-              <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-care-500 flex items-center justify-center">
                 <Heart className="w-6 h-6 text-white" />
               </div>
               <span className="text-xl font-bold text-white">CareConnect</span>
@@ -62,7 +62,7 @@ export default function Footer() {
                 <a
                   key={label}
                   href={href}
-                  className="w-10 h-10 rounded-lg bg-navy-800 flex items-center justify-center text-gray-400 hover:bg-teal-600 hover:text-white transition-colors"
+                  className="w-10 h-10 rounded-lg bg-navy-800 flex items-center justify-center text-gray-400 hover:bg-care-600 hover:text-white transition-colors"
                   aria-label={label}
                 >
                   <Icon className="w-5 h-5" />
@@ -119,8 +119,8 @@ export default function Footer() {
         <div className="mt-12 pt-8 border-t border-navy-800">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="flex flex-col items-center md:items-start gap-3">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center">
-                <Shield className="w-6 h-6 text-teal-400" />
+              <div className="w-12 h-12 rounded-xl bg-care-500/20 flex items-center justify-center">
+                <Shield className="w-6 h-6 text-care-400" />
               </div>
               <div>
                 <h4 className="text-white font-medium">Privacy First</h4>
@@ -128,8 +128,8 @@ export default function Footer() {
               </div>
             </div>
             <div className="flex flex-col items-center md:items-start gap-3">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center">
-                <Users className="w-6 h-6 text-teal-400" />
+              <div className="w-12 h-12 rounded-xl bg-care-500/20 flex items-center justify-center">
+                <Users className="w-6 h-6 text-care-400" />
               </div>
               <div>
                 <h4 className="text-white font-medium">Family Centered</h4>
@@ -137,8 +137,8 @@ export default function Footer() {
               </div>
             </div>
             <div className="flex flex-col items-center md:items-start gap-3">
-              <div className="w-12 h-12 rounded-xl bg-teal-500/20 flex items-center justify-center">
-                <HeartPulse className="w-6 h-6 text-teal-400" />
+              <div className="w-12 h-12 rounded-xl bg-care-500/20 flex items-center justify-center">
+                <HeartPulse className="w-6 h-6 text-care-400" />
               </div>
               <div>
                 <h4 className="text-white font-medium">Healthcare Focused</h4>

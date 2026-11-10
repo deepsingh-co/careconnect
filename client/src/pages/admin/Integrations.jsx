@@ -176,7 +176,7 @@ export default function AdminIntegrations() {
       <Card className="p-5 mt-6">
         <h2 className="font-semibold text-[#1e3a5f] mb-3">How to enable real integrations</h2>
         <div className="space-y-4 text-sm text-gray-700">
-          <div className="border-l-4 border-teal-500 pl-4">
+          <div className="border-l-4 border-care-500 pl-4">
             <div className="font-medium text-[#1e3a5f]">WhatsApp (Meta Cloud API)</div>
             <ol className="list-decimal list-inside mt-1 space-y-1 text-gray-600 text-sm">
               <li>Create a Meta app at developers.facebook.com and add the WhatsApp product.</li>
@@ -185,14 +185,14 @@ export default function AdminIntegrations() {
               <li>Point the webhook to <code className="bg-gray-100 px-1 rounded">POST /api/webhooks/whatsapp</code> with the verify token.</li>
             </ol>
           </div>
-          <div className="border-l-4 border-teal-500 pl-4">
+          <div className="border-l-4 border-care-500 pl-4">
             <div className="font-medium text-[#1e3a5f]">WhatsApp (Twilio alternative)</div>
             <p className="text-gray-600 mt-1">
               Set <code className="bg-gray-100 px-1 rounded">WHATSAPP_PROVIDER=twilio</code> with your
               Twilio Account SID, Auth Token and sandbox number.
             </p>
           </div>
-          <div className="border-l-4 border-teal-500 pl-4">
+          <div className="border-l-4 border-care-500 pl-4">
             <div className="font-medium text-[#1e3a5f]">AI intent detection</div>
             <p className="text-gray-600 mt-1">
               Set <code className="bg-gray-100 px-1 rounded">AI_PROVIDER=openai</code> (with{' '}
@@ -201,7 +201,7 @@ export default function AdminIntegrations() {
               fallback engine works without any key.
             </p>
           </div>
-          <div className="border-l-4 border-teal-500 pl-4">
+          <div className="border-l-4 border-care-500 pl-4">
             <div className="font-medium text-[#1e3a5f]">Email notifications</div>
             <p className="text-gray-600 mt-1">
               Set <code className="bg-gray-100 px-1 rounded">EMAIL_PROVIDER=smtp</code> plus SMTP

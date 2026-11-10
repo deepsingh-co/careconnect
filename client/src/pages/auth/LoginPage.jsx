@@ -218,7 +218,7 @@ export default function LoginPage() {
                   </Button>
                   <button
                     type="button"
-                    className="w-full text-center text-xs text-teal-600 hover:underline"
+                    className="w-full text-center text-xs text-care-600 hover:underline"
                     onClick={() => { setOtpSent(null); setOtp(''); setOtpError(''); }}
                   >
                     ← Number badalna hai / dobara OTP bhejein
@@ -230,7 +230,7 @@ export default function LoginPage() {
 
           <div className="mt-6 text-center text-sm text-gray-500">
             Don't have an account?{' '}
-            <Link to="/auth/register" className="text-teal-600 font-medium hover:text-teal-700">Create one</Link>
+            <Link to="/auth/register" className="text-care-600 font-medium hover:text-care-700">Create one</Link>
           </div>
         </div>
 

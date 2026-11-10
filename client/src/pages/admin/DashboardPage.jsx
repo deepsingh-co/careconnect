@@ -89,7 +89,7 @@ export default function AdminDashboard() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`px-4 py-3 text-sm font-medium rounded-t-lg transition-colors ${
                   activeTab === tab.id
-                    ? 'bg-white border-b-2 border-teal-600 text-teal-600'
+                    ? 'bg-white border-b-2 border-care-600 text-care-600'
                     : 'text-gray-500 hover:text-gray-700'
                 }`}
               >
@@ -222,8 +222,8 @@ export default function AdminDashboard() {
                 <div key={item.key} className="p-4 border rounded-lg">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-teal-100 flex items-center justify-center">
-                        <item.icon className="w-5 h-5 text-teal-600" />
+                      <div className="w-10 h-10 rounded-xl bg-care-100 flex items-center justify-center">
+                        <item.icon className="w-5 h-5 text-care-600" />
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900">{item.label}</h3>

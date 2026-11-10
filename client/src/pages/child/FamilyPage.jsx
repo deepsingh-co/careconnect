@@ -126,7 +126,7 @@ export default function FamilyPage() {
                 return (
                   <div key={link._id} className="p-3 bg-gray-50 rounded-xl">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center text-teal-700 font-bold">
+                      <div className="w-10 h-10 bg-care-100 rounded-full flex items-center justify-center text-care-700 font-bold">
                         {other?.name?.[0] || '?'}
                       </div>
                       <div className="flex-1">
@@ -143,7 +143,7 @@ export default function FamilyPage() {
                         <div className="grid grid-cols-2 gap-1 text-xs">
                           {Object.entries(link.permissions || {}).map(([key, val]) => (
                             <label key={key} className="flex items-center gap-1.5 text-gray-600">
-                              <input type="checkbox" checked={val} className="rounded accent-teal-600"
+                              <input type="checkbox" checked={val} className="rounded accent-care-600"
                                 onChange={(e) => updateConsent(link._id, { [key]: e.target.checked })} />
                               {key.replace(/([A-Z])/g, ' $1').toLowerCase()}
                             </label>
@@ -170,12 +170,12 @@ export default function FamilyPage() {
               {!code ? (
                 <Button onClick={createInvitation} loading={inviting}>Generate Invitation Code</Button>
               ) : (
-                <div className="bg-teal-50 rounded-xl p-4 text-center">
-                  <p className="text-xs text-teal-600 mb-2">Share this code with your family member:</p>
+                <div className="bg-care-50 rounded-xl p-4 text-center">
+                  <p className="text-xs text-care-600 mb-2">Share this code with your family member:</p>
                   <div className="flex items-center justify-center gap-2 mb-3">
                     <span className="text-2xl font-mono font-bold text-[#1e3a5f] tracking-wider">{code}</span>
-                    <button onClick={copyCode} className="p-1.5 rounded-lg hover:bg-teal-100" aria-label="Copy code">
-                      {copied ? <Check size={18} className="text-teal-600" /> : <Copy size={18} className="text-teal-600" />}
+                    <button onClick={copyCode} className="p-1.5 rounded-lg hover:bg-care-100" aria-label="Copy code">
+                      {copied ? <Check size={18} className="text-care-600" /> : <Copy size={18} className="text-care-600" />}
                     </button>
                   </div>
                   <Button variant="secondary" size="sm" onClick={() => setCode('')}>Generate New Code</Button>
@@ -228,7 +228,7 @@ export default function FamilyPage() {
                       onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))} />
                     <Button onClick={verifyParentOtp} loading={verifyingOtp}>Verify & Link</Button>
                   </div>
-                  <button className="text-xs text-teal-600 mt-3 hover:underline"
+                  <button className="text-xs text-care-600 mt-3 hover:underline"
                     onClick={() => { setOtpSent(null); setOtp(''); }}>
                     ← Number badalna hai / dobara OTP bhejein
                   </button>

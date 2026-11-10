@@ -100,7 +100,7 @@ export default function ProviderDashboard() {
             className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
               tab === t
                 ? 'bg-[#0d9488] text-white border-[#0d9488]'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-care-400'
             }`}
           >
             {t.replace(/_/g, ' ')}

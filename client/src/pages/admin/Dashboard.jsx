@@ -26,11 +26,11 @@ export default function AdminDashboard() {
         ) : (
           [
             { icon: Users, l: 'Total users', v: s?.totalUsers ?? 0, to: '/admin/users', tone: 'bg-blue-50 text-blue-700' },
-            { icon: Home, l: 'Total bookings', v: s?.totalBookings ?? 0, to: '/admin/bookings', tone: 'bg-teal-50 text-teal-700' },
+            { icon: Home, l: 'Total bookings', v: s?.totalBookings ?? 0, to: '/admin/bookings', tone: 'bg-care-50 text-care-700' },
             { icon: Briefcase, l: 'Pending providers', v: s?.pendingProviders ?? 0, to: '/admin/providers', tone: 'bg-amber-50 text-amber-700' },
             { icon: AlertTriangle, l: 'Active alerts', v: s?.activeAlerts ?? 0, to: '/dashboard/emergency', tone: 'bg-red-50 text-red-700' },
           ].map((x) => (
-            <Link key={x.l} to={x.to} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-teal-300 transition-colors">
+            <Link key={x.l} to={x.to} className="bg-white rounded-xl border border-gray-200 p-5 hover:border-care-300 transition-colors">
               <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-3 ${x.tone}`}>
                 <x.icon size={20} />
               </div>
@@ -45,7 +45,7 @@ export default function AdminDashboard() {
         <Card className="p-5">
           <div className="flex items-center justify-between mb-4">
             <h2 className="font-semibold text-[#1e3a5f]">Pending provider verification</h2>
-            <Link to="/admin/providers" className="text-sm text-teal-600 hover:underline">Review all</Link>
+            <Link to="/admin/providers" className="text-sm text-care-600 hover:underline">Review all</Link>
           </div>
           {pending.loading ? (
             <Skeleton className="h-32" />

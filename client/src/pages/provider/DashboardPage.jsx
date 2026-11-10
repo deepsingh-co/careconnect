@@ -163,7 +163,7 @@ export default function ProviderDashboard() {
         <select
           value={filterStatus}
           onChange={e => setFilterStatus(e.target.value)}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-care-500"
         >
           <option value="">All Statuses</option>
           <option value="requested">Requested</option>
@@ -192,8 +192,8 @@ export default function ProviderDashboard() {
               <Card key={job._id}>
                 <div className="flex items-start justify-between">
                   <div className="flex items-center gap-4 flex-1">
-                    <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
-                      <Icon className="w-6 h-6 text-teal-600" />
+                    <div className="w-12 h-12 rounded-xl bg-care-100 flex items-center justify-center">
+                      <Icon className="w-6 h-6 text-care-600" />
                     </div>
                     <div>
                       <div className="flex items-center gap-3">
@@ -265,7 +265,7 @@ export default function ProviderDashboard() {
                             ? [...(profile.services || []), v]
                             : (profile.services || []).filter(s => s !== v)
                         })}
-                        className="w-4 h-4 text-teal-600 border-gray-300 rounded focus:ring-teal-500"
+                        className="w-4 h-4 text-care-600 border-gray-300 rounded focus:ring-care-500"
                       />
                       {l}
                     </label>

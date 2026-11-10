@@ -138,7 +138,7 @@ export default function RidesPage() {
                   <button
                     key={`${q.providerId}-${q.vehicleId}`}
                     onClick={() => handleSelectQuote(q)}
-                    className="text-left border-2 border-gray-200 hover:border-teal-500 rounded-xl p-4 transition-colors"
+                    className="text-left border-2 border-gray-200 hover:border-care-500 rounded-xl p-4 transition-colors"
                   >
                     <div className="flex items-center justify-between mb-2">
                       <span className="font-semibold text-[#1e3a5f]">{q.providerName}</span>
@@ -157,7 +157,7 @@ export default function RidesPage() {
                 ))}
               </div>
               {handoffs.length > 0 && (
-                <div className="border border-teal-200 bg-teal-50/50 rounded-xl p-4 mb-4">
+                <div className="border border-care-200 bg-care-50/50 rounded-xl p-4 mb-4">
                   <p className="text-sm font-semibold text-[#1e3a5f] mb-2">Book a real ride (live fares in provider app)</p>
                   <div className="flex flex-wrap gap-2">
                     {handoffs.map((h) => (
@@ -166,7 +166,7 @@ export default function RidesPage() {
                         href={h.url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-white border border-teal-300 text-teal-800 rounded-lg hover:bg-teal-100"
+                        className="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-white border border-care-300 text-care-800 rounded-lg hover:bg-care-100"
                       >
                         <ExternalLink size={14} /> {h.label}
                       </a>
@@ -184,10 +184,10 @@ export default function RidesPage() {
             <>
               <h3 className="font-semibold text-[#1e3a5f] mb-4">Confirm Your Ride</h3>
               <div className="bg-gray-50 rounded-xl p-4 space-y-2 text-sm mb-4">
-                <div className="flex items-center gap-2"><MapPin size={16} className="text-teal-600" /><span><strong>Pickup:</strong> {form.pickup}</span></div>
-                <div className="flex items-center gap-2"><Navigation size={16} className="text-teal-600" /><span><strong>Destination:</strong> {form.destination}</span></div>
-                <div className="flex items-center gap-2"><Car size={16} className="text-teal-600" /><span><strong>When:</strong> {form.date} at {form.time}</span></div>
-                <div className="flex items-center gap-2"><CheckCircle2 size={16} className="text-teal-600" /><span><strong>Selected:</strong> {selected.providerName} {selected.vehicleLabel} — ₹{selected.price} (~{selected.etaMin} min)</span></div>
+                <div className="flex items-center gap-2"><MapPin size={16} className="text-care-600" /><span><strong>Pickup:</strong> {form.pickup}</span></div>
+                <div className="flex items-center gap-2"><Navigation size={16} className="text-care-600" /><span><strong>Destination:</strong> {form.destination}</span></div>
+                <div className="flex items-center gap-2"><Car size={16} className="text-care-600" /><span><strong>When:</strong> {form.date} at {form.time}</span></div>
+                <div className="flex items-center gap-2"><CheckCircle2 size={16} className="text-care-600" /><span><strong>Selected:</strong> {selected.providerName} {selected.vehicleLabel} — ₹{selected.price} (~{selected.etaMin} min)</span></div>
                 {form.specialInstructions && <p className="text-gray-500"><strong>Notes:</strong> {form.specialInstructions}</p>}
               </div>
               <Alert type="demo" className="mb-4">This is a simulated booking with a demo reference. No real driver has been assigned.</Alert>
@@ -196,7 +196,7 @@ export default function RidesPage() {
                   href={selectedHandoff.url}
                   target="_blank"
                   rel="noreferrer"
-                  className="inline-flex items-center gap-2 text-sm font-medium text-teal-800 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2 mb-4 hover:bg-teal-100"
+                  className="inline-flex items-center gap-2 text-sm font-medium text-care-800 bg-care-50 border border-care-200 rounded-lg px-3 py-2 mb-4 hover:bg-care-100"
                 >
                   <ExternalLink size={16} /> {selectedHandoff.label} — book the real ride
                 </a>

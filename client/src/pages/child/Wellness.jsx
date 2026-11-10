@@ -6,7 +6,7 @@ import { Card, Button, Badge, Skeleton, EmptyState, Alert } from '../../componen
 
 const moods = [
   { v: 'great', label: 'Great', icon: Smile, tone: 'bg-green-100 text-green-700 border-green-300' },
-  { v: 'good', label: 'Good', icon: Smile, tone: 'bg-teal-100 text-teal-700 border-teal-300' },
+  { v: 'good', label: 'Good', icon: Smile, tone: 'bg-care-100 text-care-700 border-care-300' },
   { v: 'okay', label: 'Okay', icon: Meh, tone: 'bg-amber-100 text-amber-700 border-amber-300' },
   { v: 'not_well', label: 'Not well', icon: Frown, tone: 'bg-orange-100 text-orange-700 border-orange-300' },
   { v: 'need_help', label: 'Need help', icon: HeartHandshake, tone: 'bg-red-100 text-red-700 border-red-300' },
@@ -47,7 +47,7 @@ export default function Wellness() {
   return (
     <div>
       <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+        <div className="h-11 w-11 rounded-xl bg-care-50 text-care-600 flex items-center justify-center">
           <CalendarCheck size={22} />
         </div>
         <div>
@@ -91,7 +91,7 @@ export default function Wellness() {
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-care-500"
                 rows={3}
                 placeholder="e.g. Slept well, walked in the garden"
                 maxLength={500}

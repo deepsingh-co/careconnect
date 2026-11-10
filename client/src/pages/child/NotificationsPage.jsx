@@ -7,11 +7,11 @@ import toast from 'react-hot-toast';
 
 const typeColors = {
   booking_new: 'bg-blue-50 border-blue-200',
-  booking_accepted: 'bg-teal-50 border-teal-200',
+  booking_accepted: 'bg-care-50 border-care-200',
   booking_cancelled: 'bg-red-50 border-red-200',
   booking_completed: 'bg-green-50 border-green-200',
   worker_arrived: 'bg-amber-50 border-amber-200',
-  reminder_due: 'bg-teal-50 border-teal-200',
+  reminder_due: 'bg-care-50 border-care-200',
   reminder_missed: 'bg-orange-50 border-orange-200',
   checkin_missed: 'bg-orange-50 border-orange-200',
   emergency_alert: 'bg-red-100 border-red-300',
@@ -61,11 +61,11 @@ export default function NotificationsPage() {
       <div className="flex items-center justify-between mb-4">
         <div className="flex gap-2">
           <button onClick={() => setFilter('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'all' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'all' ? 'bg-care-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
             All
           </button>
           <button onClick={() => setFilter('unread')}
-            className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'unread' ? 'bg-teal-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
+            className={`px-4 py-2 rounded-lg text-sm font-medium ${filter === 'unread' ? 'bg-care-600 text-white' : 'bg-white text-gray-600 border border-gray-200'}`}>
             Unread ({unreadCount})
           </button>
         </div>
@@ -88,14 +88,14 @@ export default function NotificationsPage() {
               }`}>
               <div className="flex items-start gap-3">
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5 ${
-                  n.isRead ? 'bg-gray-100 text-gray-400' : 'bg-teal-100 text-teal-600'
+                  n.isRead ? 'bg-gray-100 text-gray-400' : 'bg-care-100 text-care-600'
                 }`}>
                   <Bell size={16} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className={`text-sm ${n.isRead ? 'text-gray-600' : 'font-semibold text-gray-800'}`}>{n.title}</p>
-                    {!n.isRead && <div className="w-2 h-2 bg-teal-500 rounded-full" />}
+                    {!n.isRead && <div className="w-2 h-2 bg-care-500 rounded-full" />}
                   </div>
                   <p className="text-sm text-gray-500 mt-0.5">{n.body}</p>
                   <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN')}</p>

@@ -9,7 +9,7 @@ import { Card, Badge, StatusBadge, Skeleton, EmptyState, Alert } from '../../com
 
 function StatCard({ icon: Icon, label, value, sub, to, tone = 'teal' }) {
   const tones = {
-    teal: 'bg-teal-50 text-teal-600',
+    teal: 'bg-care-50 text-care-600',
     navy: 'bg-blue-50 text-blue-700',
     amber: 'bg-amber-50 text-amber-600',
     green: 'bg-green-50 text-green-600',
@@ -18,7 +18,7 @@ function StatCard({ icon: Icon, label, value, sub, to, tone = 'teal' }) {
   return (
     <Link
       to={to}
-      className="bg-white rounded-xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition-all group"
+      className="bg-white rounded-xl border border-gray-200 p-5 hover:border-care-300 hover:shadow-sm transition-all group"
     >
       <div className={`h-10 w-10 rounded-lg flex items-center justify-center mb-3 ${tones[tone]}`}>
         <Icon size={20} />
@@ -26,7 +26,7 @@ function StatCard({ icon: Icon, label, value, sub, to, tone = 'teal' }) {
       <div className="text-2xl font-bold text-[#1e3a5f]">{value}</div>
       <div className="text-sm text-gray-600 mt-0.5">{label}</div>
       {sub && <div className="text-xs text-gray-400 mt-1">{sub}</div>}
-      <div className="mt-3 text-xs font-medium text-teal-600 opacity-0 group-hover:opacity-100 flex items-center gap-1">
+      <div className="mt-3 text-xs font-medium text-care-600 opacity-0 group-hover:opacity-100 flex items-center gap-1">
         View <ArrowRight size={12} />
       </div>
     </Link>
@@ -85,7 +85,7 @@ export default function ChildDashboard() {
           </Link>
           <Link
             to="/dashboard/reminders"
-            className="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-teal-700 transition-colors"
+            className="inline-flex items-center gap-2 bg-care-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-care-700 transition-colors"
           >
             <Pill size={16} /> Add reminder
           </Link>
@@ -129,7 +129,7 @@ export default function ChildDashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-[#1e3a5f]">Upcoming service visits</h2>
-              <Link to="/dashboard/bookings" className="text-sm text-teal-600 hover:underline">View all</Link>
+              <Link to="/dashboard/bookings" className="text-sm text-care-600 hover:underline">View all</Link>
             </div>
             {bookings.loading ? (
               <Skeleton className="h-24" />
@@ -139,7 +139,7 @@ export default function ChildDashboard() {
                 title="No upcoming visits"
                 description="Book a cleaning, gardening or other household service."
                 action={
-                  <Link to="/dashboard/bookings" className="text-teal-600 text-sm font-medium hover:underline">
+                  <Link to="/dashboard/bookings" className="text-care-600 text-sm font-medium hover:underline">
                     Book a service →
                   </Link>
                 }
@@ -171,7 +171,7 @@ export default function ChildDashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-[#1e3a5f]">Medication reminders</h2>
-              <Link to="/dashboard/reminders" className="text-sm text-teal-600 hover:underline">Manage</Link>
+              <Link to="/dashboard/reminders" className="text-sm text-care-600 hover:underline">Manage</Link>
             </div>
             {reminders.loading ? (
               <Skeleton className="h-24" />
@@ -181,7 +181,7 @@ export default function ChildDashboard() {
                 title="No active reminders"
                 description="Add a schedule from an authorized prescription. CareConnect never suggests dosages."
                 action={
-                  <Link to="/dashboard/reminders" className="text-teal-600 text-sm font-medium hover:underline">
+                  <Link to="/dashboard/reminders" className="text-care-600 text-sm font-medium hover:underline">
                     Add reminder →
                   </Link>
                 }
@@ -207,7 +207,7 @@ export default function ChildDashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-[#1e3a5f]">Ride requests</h2>
-              <Link to="/dashboard/rides" className="text-sm text-teal-600 hover:underline">View all</Link>
+              <Link to="/dashboard/rides" className="text-sm text-care-600 hover:underline">View all</Link>
             </div>
             {rides.loading ? (
               <Skeleton className="h-20" />
@@ -217,7 +217,7 @@ export default function ChildDashboard() {
                 title="No active rides"
                 description="Request transport to appointments or errands."
                 action={
-                  <Link to="/dashboard/rides" className="text-teal-600 text-sm font-medium hover:underline">
+                  <Link to="/dashboard/rides" className="text-care-600 text-sm font-medium hover:underline">
                     Request a ride →
                   </Link>
                 }
@@ -245,7 +245,7 @@ export default function ChildDashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-[#1e3a5f]">Notifications</h2>
-              <Link to="/dashboard/notifications" className="text-sm text-teal-600 hover:underline">All</Link>
+              <Link to="/dashboard/notifications" className="text-sm text-care-600 hover:underline">All</Link>
             </div>
             {notifs.loading ? (
               <Skeleton className="h-40" />
@@ -258,10 +258,10 @@ export default function ChildDashboard() {
             ) : (
               <div className="space-y-3">
                 {notifications.slice(0, 5).map((n) => (
-                  <div key={n._id} className={`border rounded-lg px-3 py-2.5 ${n.isRead ? 'border-gray-100 bg-white' : 'border-teal-100 bg-teal-50/50'}`}>
+                  <div key={n._id} className={`border rounded-lg px-3 py-2.5 ${n.isRead ? 'border-gray-100 bg-white' : 'border-care-100 bg-care-50/50'}`}>
                     <div className="flex items-start justify-between gap-2">
                       <div className="text-sm font-medium text-gray-800">{n.title}</div>
-                      {!n.isRead && <span className="h-2 w-2 rounded-full bg-teal-500 shrink-0 mt-1.5" />}
+                      {!n.isRead && <span className="h-2 w-2 rounded-full bg-care-500 shrink-0 mt-1.5" />}
                     </div>
                     <div className="text-xs text-gray-500 mt-1 line-clamp-2">{n.body}</div>
                     <div className="text-[10px] text-gray-400 mt-1">
@@ -276,7 +276,7 @@ export default function ChildDashboard() {
           <Card className="p-5">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold text-[#1e3a5f]">Family links</h2>
-              <Link to="/dashboard/family" className="text-sm text-teal-600 hover:underline">Manage</Link>
+              <Link to="/dashboard/family" className="text-sm text-care-600 hover:underline">Manage</Link>
             </div>
             {family.loading ? (
               <Skeleton className="h-24" />
@@ -286,7 +286,7 @@ export default function ChildDashboard() {
                 title="No family links yet"
                 description="Invite a family member to share care updates."
                 action={
-                  <Link to="/dashboard/family" className="text-teal-600 text-sm font-medium hover:underline">
+                  <Link to="/dashboard/family" className="text-care-600 text-sm font-medium hover:underline">
                     Send invitation →
                   </Link>
                 }

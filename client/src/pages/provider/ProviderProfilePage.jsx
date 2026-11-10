@@ -98,8 +98,8 @@ export default function ProviderProfilePage() {
                   <button key={s.id} type="button" onClick={() => toggleService(s.id)}
                     className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                       form.services.includes(s.id)
-                        ? 'bg-teal-600 text-white border-teal-600'
-                        : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                        ? 'bg-care-600 text-white border-care-600'
+                        : 'bg-white text-gray-600 border-gray-300 hover:border-care-400'
                     }`}>
                     {s.label}
                   </button>

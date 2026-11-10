@@ -151,8 +151,8 @@ export default function ChildDashboard() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card className="p-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center">
-              <Pill className="w-6 h-6 text-teal-600" />
+            <div className="w-12 h-12 rounded-xl bg-care-100 flex items-center justify-center">
+              <Pill className="w-6 h-6 text-care-600" />
             </div>
             <div>
               <p className="text-2xl font-bold text-gray-900">{activeReminders.length}</p>
@@ -205,7 +205,7 @@ export default function ChildDashboard() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Upcoming Services</h2>
-              <a href="/dashboard/bookings" className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1">
+              <a href="/dashboard/bookings" className="text-sm text-care-600 hover:text-care-700 flex items-center gap-1">
                 View all <ChevronRight className="w-4 h-4" />
               </a>
             </div>
@@ -220,8 +220,8 @@ export default function ChildDashboard() {
               <div className="space-y-3">
                 {upcomingBookings.map((booking) => (
                   <div key={booking._id} className="flex items-center gap-4 p-3 bg-gray-50 rounded-lg">
-                    <div className="w-12 h-12 rounded-xl bg-teal-100 flex items-center justify-center flex-shrink-0">
-                      <Home className="w-5 h-5 text-teal-600" />
+                    <div className="w-12 h-12 rounded-xl bg-care-100 flex items-center justify-center flex-shrink-0">
+                      <Home className="w-5 h-5 text-care-600" />
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-gray-900 truncate">
@@ -244,7 +244,7 @@ export default function ChildDashboard() {
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-semibold text-gray-900">Medication Reminders</h2>
-              <a href="/dashboard/reminders" className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1">
+              <a href="/dashboard/reminders" className="text-sm text-care-600 hover:text-care-700 flex items-center gap-1">
                 Manage <ChevronRight className="w-4 h-4" />
               </a>
             </div>
@@ -328,15 +328,15 @@ export default function ChildDashboard() {
                     className={`p-3 rounded-lg transition-colors ${!notif.isRead ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-gray-50'}`}
                   >
                     <div className="flex items-start gap-3">
-                      <div className="w-8 h-8 rounded-full bg-teal-100 flex items-center justify-center flex-shrink-0">
-                        <Bell className="w-4 h-4 text-teal-600" />
+                      <div className="w-8 h-8 rounded-full bg-care-100 flex items-center justify-center flex-shrink-0">
+                        <Bell className="w-4 h-4 text-care-600" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="font-medium text-gray-900 text-sm">{notif.title}</p>
                         <p className="text-xs text-gray-500 mt-0.5">{notif.body}</p>
                         <p className="text-xs text-gray-400 mt-1">{format(parseISO(notif.createdAt), 'MMM d, HH:mm')}</p>
                       </div>
-                      {!notif.isRead && <div className="w-2 h-2 rounded-full bg-teal-600 flex-shrink-0 mt-1" />}
+                      {!notif.isRead && <div className="w-2 h-2 rounded-full bg-care-600 flex-shrink-0 mt-1" />}
                     </div>
                   </div>
                 ))}
@@ -348,17 +348,17 @@ export default function ChildDashboard() {
           <Card>
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h2>
             <div className="grid grid-cols-2 gap-3">
-              <a href="/dashboard/bookings/new" className="p-4 border border-gray-200 rounded-xl hover:border-teal-300 hover:bg-teal-50 transition-colors text-center">
-                <Home className="w-8 h-8 text-teal-600 mx-auto mb-2" />
+              <a href="/dashboard/bookings/new" className="p-4 border border-gray-200 rounded-xl hover:border-care-300 hover:bg-care-50 transition-colors text-center">
+                <Home className="w-8 h-8 text-care-600 mx-auto mb-2" />
                 <p className="font-medium text-gray-900">Book Service</p>
                 <p className="text-xs text-gray-500">Cleaning, gardening, etc.</p>
               </a>
-              <a href="/dashboard/rides/new" className="p-4 border border-gray-200 rounded-xl hover:border-teal-300 hover:bg-teal-50 transition-colors text-center">
+              <a href="/dashboard/rides/new" className="p-4 border border-gray-200 rounded-xl hover:border-care-300 hover:bg-care-50 transition-colors text-center">
                 <Car className="w-8 h-8 text-blue-600 mx-auto mb-2" />
                 <p className="font-medium text-gray-900">Book Ride</p>
                 <p className="text-xs text-gray-500">Hospital, clinic, etc.</p>
               </a>
-              <a href="/dashboard/food/new" className="p-4 border border-gray-200 rounded-xl hover:border-teal-300 hover:bg-teal-50 transition-colors text-center">
+              <a href="/dashboard/food/new" className="p-4 border border-gray-200 rounded-xl hover:border-care-300 hover:bg-care-50 transition-colors text-center">
                 <Utensils className="w-8 h-8 text-orange-600 mx-auto mb-2" />
                 <p className="font-medium text-gray-900">Order Food</p>
                 <p className="text-xs text-gray-500">Meals & groceries</p>

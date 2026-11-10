@@ -49,7 +49,7 @@ export default function AboutPage() {
         <div className="grid sm:grid-cols-2 gap-4">
           {features.map((f) => (
             <div key={f.title} className="border border-gray-200 rounded-xl p-4">
-              <f.icon size={20} className="text-teal-600 mb-2" />
+              <f.icon size={20} className="text-care-600 mb-2" />
               <p className="font-semibold text-[#1e3a5f] text-sm">{f.title}</p>
               <p className="text-sm text-gray-600 mt-1">{f.desc}</p>
             </div>
@@ -61,7 +61,7 @@ export default function AboutPage() {
         <div className="grid sm:grid-cols-2 gap-4">
           {values.map((v) => (
             <div key={v.title} className="bg-gray-50 rounded-xl p-4">
-              <v.icon size={20} className="text-teal-600 mb-2" />
+              <v.icon size={20} className="text-care-600 mb-2" />
               <p className="font-semibold text-[#1e3a5f] text-sm">{v.title}</p>
               <p className="text-sm text-gray-600 mt-1">{v.desc}</p>
             </div>
@@ -80,8 +80,8 @@ export default function AboutPage() {
 
       <Section title="Get in touch">
         <p>
-          We would love to hear from your family. Visit the <Link to="/contact" className="text-teal-700 hover:underline">contact page</Link>{' '}
-          or write to <a href="mailto:deepsinghcode@gmail.com" className="text-teal-700 hover:underline">deepsinghcode@gmail.com</a>.
+          We would love to hear from your family. Visit the <Link to="/contact" className="text-care-700 hover:underline">contact page</Link>{' '}
+          or write to <a href="mailto:deepsinghcode@gmail.com" className="text-care-700 hover:underline">deepsinghcode@gmail.com</a>.
         </p>
       </Section>
     </InfoPageLayout>

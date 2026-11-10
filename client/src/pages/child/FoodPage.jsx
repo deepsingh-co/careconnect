@@ -74,7 +74,7 @@ export default function FoodPage() {
       </Alert>
 
       {handoffs.length > 0 && (
-        <Card className="p-4 mb-4 border-teal-200 bg-teal-50/40">
+        <Card className="p-4 mb-4 border-care-200 bg-care-50/40">
           <p className="text-sm font-semibold text-[#1e3a5f] mb-2">Order real food — provider app mein kholein</p>
           <div className="flex flex-wrap gap-2">
             {handoffs.map((h) => (
@@ -83,7 +83,7 @@ export default function FoodPage() {
                 href={h.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-white border border-teal-300 text-teal-800 rounded-lg hover:bg-teal-100"
+                className="inline-flex items-center gap-1.5 text-sm px-3 py-2 bg-white border border-care-300 text-care-800 rounded-lg hover:bg-care-100"
               >
                 <ExternalLink size={14} /> {h.label}
               </a>
@@ -119,7 +119,7 @@ export default function FoodPage() {
                     <Minus size={14} />
                   </button>
                   <span className="text-sm font-medium w-5 text-center">{item.qty}</span>
-                  <button onClick={() => addToCart(item)} className="w-7 h-7 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center hover:bg-teal-200">
+                  <button onClick={() => addToCart(item)} className="w-7 h-7 rounded-full bg-care-100 text-care-700 flex items-center justify-center hover:bg-care-200">
                     <Plus size={14} />
                   </button>
                 </div>

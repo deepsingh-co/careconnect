@@ -223,7 +223,7 @@ export default function Landing() {
                   <div className="text-sm font-medium text-gray-800">{r.t}</div>
                   <div className={`text-xs font-medium px-2 py-1 rounded-full ${
                     r.c === 'green' ? 'bg-green-100 text-green-700'
-                    : r.c === 'teal' ? 'bg-teal-100 text-teal-700'
+                    : r.c === 'teal' ? 'bg-care-100 text-care-700'
                     : 'bg-amber-100 text-amber-700'
                   }`}>{r.s}</div>
                 </div>

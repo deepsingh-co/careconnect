@@ -125,7 +125,7 @@ export default function EmergencyPage() {
             href="https://esanjeevani.mohfw.gov.in/"
             target="_blank"
             rel="noreferrer"
-            className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-teal-50 border border-teal-200 text-sm font-medium text-teal-800 hover:bg-teal-100"
+            className="mt-3 flex items-center gap-2 p-2.5 rounded-lg bg-care-50 border border-care-200 text-sm font-medium text-care-800 hover:bg-care-100"
           >
             <Video size={16} className="shrink-0" />
             <span className="flex-1">Free doctor video consult — eSanjeevani (Govt. of India)</span>

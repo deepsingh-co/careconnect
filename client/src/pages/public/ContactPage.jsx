@@ -40,27 +40,27 @@ export default function ContactPage() {
         <div className="grid sm:grid-cols-2 gap-3">
           <a
             href={`mailto:${CONTACT_EMAIL}`}
-            className="border border-gray-200 rounded-xl p-4 hover:border-teal-400 transition-colors"
+            className="border border-gray-200 rounded-xl p-4 hover:border-care-400 transition-colors"
           >
-            <Mail size={20} className="text-teal-600 mb-2" />
+            <Mail size={20} className="text-care-600 mb-2" />
             <p className="font-semibold text-[#1e3a5f] text-sm">Email us</p>
             <p className="text-sm text-gray-600 mt-1 break-all">{CONTACT_EMAIL}</p>
           </a>
           <a
             href={`tel:${CONTACT_PHONE_TEL}`}
-            className="border border-gray-200 rounded-xl p-4 hover:border-teal-400 transition-colors"
+            className="border border-gray-200 rounded-xl p-4 hover:border-care-400 transition-colors"
           >
-            <Phone size={20} className="text-teal-600 mb-2" />
+            <Phone size={20} className="text-care-600 mb-2" />
             <p className="font-semibold text-[#1e3a5f] text-sm">Call us</p>
             <p className="text-sm text-gray-600 mt-1">{CONTACT_PHONE_DISPLAY}</p>
           </a>
           <div className="border border-gray-200 rounded-xl p-4">
-            <Clock size={20} className="text-teal-600 mb-2" />
+            <Clock size={20} className="text-care-600 mb-2" />
             <p className="font-semibold text-[#1e3a5f] text-sm">Response time</p>
             <p className="text-sm text-gray-600 mt-1">Within 1–2 business days</p>
           </div>
           <div className="border border-gray-200 rounded-xl p-4">
-            <MapPin size={20} className="text-teal-600 mb-2" />
+            <MapPin size={20} className="text-care-600 mb-2" />
             <p className="font-semibold text-[#1e3a5f] text-sm">Location</p>
             <p className="text-sm text-gray-600 mt-1">Jaipur, Rajasthan, India</p>
           </div>
@@ -78,7 +78,7 @@ export default function ContactPage() {
                 value={form.name}
                 onChange={(e) => update('name', e.target.value)}
                 placeholder="Full name"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-care-500"
               />
             </div>
             <div>
@@ -89,7 +89,7 @@ export default function ContactPage() {
                 value={form.email}
                 onChange={(e) => update('email', e.target.value)}
                 placeholder="you@example.com"
-                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+                className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-care-500"
               />
             </div>
           </div>
@@ -99,7 +99,7 @@ export default function ContactPage() {
               id="contact-topic"
               value={form.topic}
               onChange={(e) => update('topic', e.target.value)}
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-care-500"
             >
               {topics.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
@@ -113,22 +113,22 @@ export default function ContactPage() {
               value={form.message}
               onChange={(e) => update('message', e.target.value)}
               placeholder="Tell us how we can help…"
-              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-teal-500"
+              className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-care-500"
             />
           </div>
           <button
             type="submit"
-            className="inline-flex items-center gap-2 bg-teal-600 text-white px-5 py-3 rounded-lg font-medium hover:bg-teal-700 transition-colors"
+            className="inline-flex items-center gap-2 bg-care-600 text-white px-5 py-3 rounded-lg font-medium hover:bg-care-700 transition-colors"
           >
             <Send size={16} /> Send message
           </button>
           <p className="text-xs text-gray-500">
             This opens your email app with the message pre-filled. If nothing opens, email us directly at{' '}
-            <a href={`mailto:${CONTACT_EMAIL}`} className="text-teal-700 hover:underline">{CONTACT_EMAIL}</a> or call{' '}
-            <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-teal-700 hover:underline">{CONTACT_PHONE_DISPLAY}</a>.
+            <a href={`mailto:${CONTACT_EMAIL}`} className="text-care-700 hover:underline">{CONTACT_EMAIL}</a> or call{' '}
+            <a href={`tel:${CONTACT_PHONE_TEL}`} className="text-care-700 hover:underline">{CONTACT_PHONE_DISPLAY}</a>.
           </p>
           {opened && (
-            <p className="text-sm text-teal-700 bg-teal-50 border border-teal-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-care-700 bg-care-50 border border-care-200 rounded-lg px-3 py-2">
               Your email app should be open now — press send there and we will get back to you soon.
             </p>
           )}

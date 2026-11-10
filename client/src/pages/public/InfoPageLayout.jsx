@@ -20,12 +20,12 @@ export default function InfoPageLayout({ title, subtitle, updated, children }) {
             <span className="text-lg font-bold text-[#1e3a5f]">CareConnect</span>
           </Link>
           <div className="flex items-center gap-2 sm:gap-3">
-            <Link to="/auth/login" className="text-sm font-medium text-gray-700 hover:text-teal-700 px-2 py-2">
+            <Link to="/auth/login" className="text-sm font-medium text-gray-700 hover:text-care-700 px-2 py-2">
               Sign in
             </Link>
             <Link
               to="/auth/register"
-              className="text-sm font-medium bg-teal-600 text-white px-3.5 py-2 rounded-lg hover:bg-teal-700 transition-colors"
+              className="text-sm font-medium bg-care-600 text-white px-3.5 py-2 rounded-lg hover:bg-care-700 transition-colors"
             >
               Get started
             </Link>
@@ -34,7 +34,7 @@ export default function InfoPageLayout({ title, subtitle, updated, children }) {
       </header>
 
       <main className="flex-1 w-full max-w-3xl mx-auto px-4 sm:px-6 py-10 sm:py-14">
-        <Link to="/" className="text-sm text-teal-700 hover:underline">← Back to home</Link>
+        <Link to="/" className="text-sm text-care-700 hover:underline">← Back to home</Link>
         <h1 className="text-2xl sm:text-3xl font-bold text-[#1e3a5f] mt-4">{title}</h1>
         {subtitle && <p className="text-gray-600 mt-2">{subtitle}</p>}
         {updated && <p className="text-xs sm:text-sm text-gray-400 mt-2">Last updated: {updated}</p>}

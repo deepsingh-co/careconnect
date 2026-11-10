@@ -181,7 +181,7 @@ export default function Bookings() {
 
       {/* Confirmation summary */}
       {showConfirm && (
-        <Card className="p-5 mt-4 border-teal-300">
+        <Card className="p-5 mt-4 border-care-300">
           <h2 className="font-semibold text-[#1e3a5f] mb-3">Confirm your booking</h2>
           <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2">
             <div><span className="text-gray-500">Service:</span> <strong className="capitalize">{draft.serviceCategory.replace(/_/g, ' ')}</strong></div>
@@ -262,7 +262,7 @@ export default function Bookings() {
                     </div>
                     {b.description && <div className="text-xs text-gray-500 mt-1">{b.description}</div>}
                     {b.provider?.businessName && (
-                      <div className="text-xs text-teal-700 mt-1">Provider: {b.provider.businessName}</div>
+                      <div className="text-xs text-care-700 mt-1">Provider: {b.provider.businessName}</div>
                     )}
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">

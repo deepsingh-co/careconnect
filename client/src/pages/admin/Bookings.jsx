@@ -54,7 +54,7 @@ export default function AdminBookings() {
   return (
     <div>
       <div className="flex items-center gap-3">
-        <div className="h-11 w-11 rounded-xl bg-teal-50 text-teal-600 flex items-center justify-center">
+        <div className="h-11 w-11 rounded-xl bg-care-50 text-care-600 flex items-center justify-center">
           <Home size={22} />
         </div>
         <div>
@@ -76,7 +76,7 @@ export default function AdminBookings() {
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
               tab === t.id
                 ? 'bg-[#0d9488] text-white border-[#0d9488]'
-                : 'bg-white text-gray-600 border-gray-300 hover:border-teal-400'
+                : 'bg-white text-gray-600 border-gray-300 hover:border-care-400'
             }`}
           >
             <t.icon size={15} /> {t.label}

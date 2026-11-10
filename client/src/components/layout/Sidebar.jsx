@@ -60,7 +60,7 @@ export default function Sidebar() {
       >
         <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200">
           <Link to="/" className="flex items-center gap-2" aria-label="CareConnect Home">
-            <div className="w-10 h-10 rounded-xl bg-teal-600 flex items-center justify-center flex-shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-care-600 flex items-center justify-center flex-shrink-0">
               <Heart className="w-6 h-6 text-white" />
             </div>
             {!collapsed && <span className="text-xl font-bold text-navy-900">CareConnect</span>}
@@ -82,7 +82,7 @@ export default function Sidebar() {
               className={({ isActive }) =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   isActive
-                    ? 'bg-teal-50 text-teal-700'
+                    ? 'bg-care-50 text-care-700'
                     : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
                 }`
               }

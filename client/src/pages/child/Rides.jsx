@@ -124,7 +124,7 @@ export default function Rides() {
       )}
 
       {showConfirm && (
-        <Card className="p-5 mt-4 border-teal-300">
+        <Card className="p-5 mt-4 border-care-300">
           <h2 className="font-semibold text-[#1e3a5f] mb-3">Confirm your ride request</h2>
           <div className="bg-gray-50 rounded-lg p-4 text-sm space-y-2">
             <div className="flex items-start gap-2"><MapPin size={14} className="mt-1 text-gray-400" />

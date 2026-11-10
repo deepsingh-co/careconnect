@@ -5,17 +5,17 @@ import { Card, Button, Badge, Skeleton, EmptyState, Alert } from '../../componen
 
 const typeMeta = {
   booking_new: { icon: Home, color: 'text-blue-600 bg-blue-50' },
-  booking_accepted: { icon: CheckCheck, color: 'text-teal-600 bg-teal-50' },
+  booking_accepted: { icon: CheckCheck, color: 'text-care-600 bg-care-50' },
   booking_rejected: { icon: Home, color: 'text-amber-600 bg-amber-50' },
   booking_cancelled: { icon: Home, color: 'text-red-600 bg-red-50' },
   booking_completed: { icon: CheckCheck, color: 'text-green-600 bg-green-50' },
   worker_arrived: { icon: CheckCheck, color: 'text-blue-600 bg-blue-50' },
-  reminder_due: { icon: Pill, color: 'text-teal-600 bg-teal-50' },
+  reminder_due: { icon: Pill, color: 'text-care-600 bg-care-50' },
   reminder_missed: { icon: Pill, color: 'text-amber-600 bg-amber-50' },
   checkin_missed: { icon: CalendarCheck, color: 'text-amber-600 bg-amber-50' },
   emergency_alert: { icon: HeartPulse, color: 'text-red-600 bg-red-50' },
   family_invitation: { icon: Users, color: 'text-blue-600 bg-blue-50' },
-  family_link_accepted: { icon: Users, color: 'text-teal-600 bg-teal-50' },
+  family_link_accepted: { icon: Users, color: 'text-care-600 bg-care-50' },
   system: { icon: Bell, color: 'text-gray-600 bg-gray-50' },
 };
 
@@ -79,7 +79,7 @@ export default function NotificationsPage() {
                 <div
                   key={n._id}
                   className={`flex gap-4 border rounded-xl p-4 transition-colors ${
-                    n.isRead ? 'border-gray-100 bg-white' : 'border-teal-100 bg-teal-50/40'
+                    n.isRead ? 'border-gray-100 bg-white' : 'border-care-100 bg-care-50/40'
                   }`}
                 >
                   <div className={`h-10 w-10 rounded-lg flex items-center justify-center shrink-0 ${meta.color}`}>
@@ -98,7 +98,7 @@ export default function NotificationsPage() {
                       {!n.isRead && (
                         <button
                           onClick={() => markRead(n)}
-                          className="text-xs text-teal-600 font-medium hover:underline"
+                          className="text-xs text-care-600 font-medium hover:underline"
                         >
                           Mark as read
                         </button>
