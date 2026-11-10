@@ -70,6 +70,29 @@ const extractText = (message) => {
   return null;
 };
 
+/**
+ * Extract the machine-readable id of a tapped button. WhatsApp keeps this
+ * separate from the display text ("Approve"), so approval routing must never
+ * rely on the label alone.
+ */
+const extractButtonId = (message) => {
+  if (!message || typeof message !== 'object') return null;
+  const direct =
+    message.buttonsResponseMessage?.selectedButtonId ||
+    message.templateButtonReplyMessage?.selectedId ||
+    message.listResponseMessage?.singleSelectReply?.selectedRowId;
+  if (direct) return direct;
+
+  const wrapped =
+    message.ephemeralMessage?.message ||
+    message.viewOnceMessage?.message ||
+    message.viewOnceMessageV2?.message ||
+    message.editedMessage?.message ||
+    message.documentWithCaptionMessage?.message;
+  if (wrapped) return extractButtonId(wrapped);
+  return null;
+};
+
 /** True once a WhatsApp number has been linked (QR scanned at least once). */
 const hasSession = () => {
   try {
@@ -110,6 +133,7 @@ async function handleIncoming(m) {
 
   const fromMe = Boolean(m.key && m.key.fromMe);
   const text = extractText(m.message);
+  const buttonId = extractButtonId(m.message);
   const rawJid = (m.key && m.key.remoteJid) || '';
 
   // WhatsApp privacy addressing: chats can arrive as `<lid>@lid` instead of
@@ -134,7 +158,7 @@ async function handleIncoming(m) {
   // One-line trace for every live message so operators can see what arrived
   // and why something was skipped (reply-only bot = fromMe must be ignored).
   if (!fromMe && rawJid && rawJid !== 'status@broadcast') {
-    console.log(`[Baileys] ← ${rawJid}${rawJid !== jid ? ` → ${jid}` : ''}${text !== null ? `: ${String(text).slice(0, 80)}` : ' (no text)'}`);
+    console.log(`[Baileys] ← ${rawJid}${rawJid !== jid ? ` → ${jid}` : ''}${text !== null ? `: ${String(text).slice(0, 80)}` : buttonId ? `: [button ${buttonId}]` : ' (no text)'}`);
   }
 
   if (!inboundHandler) {
@@ -151,13 +175,14 @@ async function handleIncoming(m) {
 
   const from = jidToPhone(jid);
   // Media/protocol noise without a caption is ignored — the bot stays reply-only.
-  if (!from || text === null) return;
+  if (!from || (text === null && !buttonId)) return;
 
   await inboundHandler({
     from,
     id: (m.key && m.key.id) || `wa_${Date.now()}`,
-    text,
-    type: 'text',
+    text: text !== null ? text : '',
+    buttonId: buttonId || null,
+    type: buttonId ? 'button' : 'text',
     provider: 'baileys',
   });
 }
@@ -336,14 +361,55 @@ async function sendText(to, text) {
   };
 }
 
+/**
+ * Send native WhatsApp reply buttons. Older Baileys protocol versions may
+ * reject this shape, so callers must keep a text fallback.
+ */
+async function sendButtons(to, { text, buttons = [], footer = null } = {}) {
+  if (state.state !== 'open' || !sock) {
+    const error = new Error(
+      'WhatsApp number is not linked yet. Scan the QR code in Admin → Integrations, then retry.'
+    );
+    error.statusCode = 503;
+    throw error;
+  }
+
+  const jid = phoneToJid(to);
+  if (!jid) {
+    const error = new Error(`Invalid recipient phone number: ${to}`);
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const sent = await sock.sendMessage(jid, {
+    text: String(text),
+    footer: footer ? String(footer) : undefined,
+    buttons: (buttons || []).slice(0, 3).map((button) => ({
+      buttonId: String(button.id),
+      buttonText: { displayText: String(button.title) },
+      type: 1,
+    })),
+    headerType: 1,
+  });
+  return {
+    success: true,
+    provider: 'baileys',
+    to,
+    buttons: (buttons || []).length,
+    messageId: (sent && sent.key && sent.key.id) || null,
+  };
+}
+
 module.exports = {
   connect,
   restart,
   sendText,
+  sendButtons,
   getStatus,
   hasSession,
   setInboundHandler,
   jidToPhone,
   phoneToJid,
   extractText,
+  extractButtonId,
 };

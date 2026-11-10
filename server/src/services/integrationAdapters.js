@@ -170,12 +170,14 @@ const foodProviders = {
     const restaurant =
       DEMO_RESTAURANTS.find((r) => r.id === restaurantId) || DEMO_RESTAURANTS[0];
     const total = items.reduce((sum, it) => sum + (it.unitPrice || 0) * (it.quantity || 1), 0);
+    const rider = DEMO_DRIVERS[hashInt(`rider|${restaurant.id}`, DEMO_DRIVERS.length)];
     return {
       ref: demoRef('ZOMATO', restaurant.id),
       restaurantName: restaurant.name,
       estimatedTotal: total,
       etaMin: 25 + hashInt(`food|${restaurant.id}`, 16), // 25–40 min
-      riderName: DEMO_DRIVERS[hashInt(`rider|${restaurant.id}`, DEMO_DRIVERS.length)].name,
+      riderName: rider.name,
+      riderPhone: rider.phone,
       isDemo: true,
       notice: 'DEMO order — no real restaurant or delivery partner was contacted.',
     };
@@ -184,10 +186,10 @@ const foodProviders = {
 
 // ── Home Services (Urban Company-style demo) ─────────────────────────────────
 const DEMO_PROS = [
-  { name: 'Sunita Devi', rating: 4.8 },
-  { name: 'Rekha Sharma', rating: 4.7 },
-  { name: 'Mohan Lal', rating: 4.6 },
-  { name: 'Geeta Kumari', rating: 4.9 },
+  { name: 'Sunita Devi', rating: 4.8, phone: '+91 90000 55555' },
+  { name: 'Rekha Sharma', rating: 4.7, phone: '+91 90000 66666' },
+  { name: 'Mohan Lal', rating: 4.6, phone: '+91 90000 77777' },
+  { name: 'Geeta Kumari', rating: 4.9, phone: '+91 90000 88888' },
 ];
 
 const homeServiceProviders = {
@@ -202,6 +204,7 @@ const homeServiceProviders = {
       ref: demoRef('UC', categoryId || 'service'),
       platform: 'Urban Company (Demo)',
       proName: pro.name,
+      proPhone: pro.phone,
       proRating: pro.rating,
       arrivalWindow: 'Tomorrow, 10:00 AM – 12:00 PM (simulated)',
       isDemo: true,

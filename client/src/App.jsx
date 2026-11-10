@@ -18,6 +18,7 @@ import FoodPage from './pages/child/FoodPage';
 import FamilyPage from './pages/child/FamilyPage';
 import EmergencyPage from './pages/child/EmergencyPage';
 import NotificationsPage from './pages/child/NotificationsPage';
+import ApprovalsPage from './pages/child/ApprovalsPage';
 
 import WhatsAppConnect from './pages/parent/WhatsAppConnect';
 
@@ -73,6 +74,7 @@ export default function App() {
           <Route path="/family" element={<ProtectedRoute roles={CareRoles}><FamilyPage /></ProtectedRoute>} />
           <Route path="/emergency" element={<ProtectedRoute roles={CareRoles}><EmergencyPage /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute roles={CareRoles}><NotificationsPage /></ProtectedRoute>} />
+          <Route path="/approvals" element={<ProtectedRoute roles={CareRoles}><ApprovalsPage /></ProtectedRoute>} />
 
           {/* Provider */}
           <Route path="/provider/jobs" element={<ProtectedRoute roles={['provider', 'admin']}><ProviderDashboard /></ProtectedRoute>} />

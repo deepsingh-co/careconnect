@@ -8,16 +8,15 @@ const aiService = require('../services/aiService');
 const ConversationSession = require('../models/ConversationSession');
 const User = require('../models/User');
 const EmergencyAlert = require('../models/EmergencyAlert');
-const RideRequest = require('../models/RideRequest');
-const FoodOrder = require('../models/FoodOrder');
 const ServiceBooking = require('../models/ServiceBooking');
 const WellnessCheckin = require('../models/WellnessCheckin');
 const ReminderEvent = require('../models/ReminderEvent');
 const FamilyLink = require('../models/FamilyLink');
 const Notification = require('../models/Notification');
-const { rideProviders, foodProviders, homeServiceProviders } = require('../services/integrationAdapters');
-const { rideHandoffs, rideHandoffFor, foodHandoffs, quickCommerceHandoffs, medicineHandoffs } = require('../services/handoffLinks');
+const { rideProviders, foodProviders } = require('../services/integrationAdapters');
+const { rideHandoffs, foodHandoffs } = require('../services/handoffLinks');
 const { extractDailyNeeds, extractMedicines } = require('../services/itemCatalogs');
+const approvalService = require('../services/approvalService');
 
 // ── Webhook Verification (Meta only) ─────────────────────────────────────────
 exports.verify = (req, res) => {
@@ -115,12 +114,27 @@ async function processWebhookPayload(body, rawBody, signature) {
     const entry = body?.entry?.[0];
     const changes = entry?.changes?.[0];
     const value = changes?.value;
-    if (value?.messages) messages = value.messages.map((m) => ({
-      from: m.from,
-      id: m.id,
-      text: m.type === 'text' ? m.text?.body : `[${m.type} message]`,
-      type: m.type,
-    }));
+    if (value?.messages) {
+      messages = value.messages.map((m) => {
+        let text = `[${m.type} message]`;
+        let buttonId = null;
+
+        if (m.type === 'text') {
+          text = m.text?.body || '';
+        } else if (m.type === 'interactive') {
+          buttonId = m.interactive?.button_reply?.id || m.interactive?.list_reply?.id || null;
+          text =
+            m.interactive?.button_reply?.title ||
+            m.interactive?.list_reply?.title ||
+            '';
+        } else if (m.type === 'button') {
+          buttonId = m.button?.payload || null;
+          text = m.button?.text || '';
+        }
+
+        return { from: m.from, id: m.id, text, buttonId, type: m.type };
+      });
+    }
   } else if (config.whatsapp.provider === 'twilio') {
     // Twilio webhook format
     const from = body?.From?.replace('whatsapp:', '');
@@ -145,6 +159,54 @@ async function handleIncomingMessage(msg) {
   if (!from) {
     console.warn('[Webhook] Message without a usable phone number — ignoring.');
     return;
+  }
+
+  // ── Family approvals (child replies) ───────────────────────────────────────
+  // Children answer Approve/Decline on WhatsApp. The tap carries a machine id
+  // (approve_ABC123); text-only providers send "APPROVE ABC123".
+  const decision =
+    approvalService.parseButtonId(msg.buttonId) || approvalService.parseApprovalCommand(text);
+
+  if (decision) {
+    const childUser = await User.findOne({ phone: from, role: 'child' });
+    if (childUser) {
+      const childSession = await ConversationSession.findOneAndUpdate(
+        { whatsappNumber: from },
+        { $setOnInsert: { whatsappNumber: from } },
+        { upsert: true, new: true }
+      );
+
+      if (childSession.processedMessageIds.includes(id)) {
+        console.log(`[Webhook] Duplicate child reply ${id} — skipping.`);
+        return;
+      }
+      childSession.processedMessageIds.push(id);
+      childSession.lastMessageAt = new Date();
+      await childSession.save();
+
+      try {
+        await approvalService.respondToApproval({
+          code: decision.code,
+          action: decision.action,
+          responder: childUser,
+        });
+      } catch (err) {
+        if (err.statusCode && err.statusCode < 500) {
+          await whatsappService
+            .sendMessage(from, err.userMessage || err.message)
+            .catch(() => {});
+        } else {
+          console.error('[Webhook] Approval response failed:', err.message);
+          await whatsappService
+            .sendMessage(
+              from,
+              'We could not complete this approval right now. Please open the CareConnect app and try again.'
+            )
+            .catch(() => {});
+        }
+      }
+      return;
+    }
   }
 
   // ONLY verified parents are answered. Anyone else messaging the bot is
@@ -259,11 +321,11 @@ async function routeIntent(intent, session, parentUser, from, originalText) {
       break;
 
     case 'grocery_order':
-      await handleGroceryOrder(session, parentUser, from, originalText, lang);
+      await handleGroceryOrder(session, parentUser, originalText);
       break;
 
     case 'medicine_order':
-      await handleMedicineOrder(session, parentUser, from, originalText, lang);
+      await handleMedicineOrder(session, parentUser, originalText);
       break;
 
     case 'home_cleaning':
@@ -272,35 +334,17 @@ async function routeIntent(intent, session, parentUser, from, originalText) {
     case 'other_home_service':
     case 'plumbing':
     case 'electrical': {
-      const uc = homeServiceProviders.bookService({ categoryId: intent.intent });
-      if (parentUser) {
-        await ServiceBooking.create({
-          parent: parentUser._id,
-          requestedBy: parentUser._id,
-          serviceCategory: intent.intent === 'other_home_service' ? 'other_home_service' : intent.intent,
-          description: originalText,
-          scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // Next day
-          status: 'requested',
-          sourceChannel: 'whatsapp',
-          demoBookingRef: uc.ref,
-        });
-        await notifyChildren(
-          parentUser,
-          'Service requested via WhatsApp',
-          `Your parent requested a home service (${intent.intent.replace(/_/g, ' ')}) via ${uc.platform}. DEMO ref: ${uc.ref}. Please verify.`,
-          'booking_new',
-          {}
-        );
-      }
-      await whatsappService.sendMessage(
-        from,
-        t(
-          lang,
-          `Your service request has been received (DEMO booking via ${uc.platform}). Ref: ${uc.ref}. ${uc.proName} (rating ${uc.proRating}) — ${uc.arrivalWindow}. Your family has been notified for verification.`,
-          `Aapki service request mil gayi (DEMO booking via ${uc.platform}). Ref: ${uc.ref}. ${uc.proName} ${uc.arrivalWindow} aayenge. Parivaar ko bata diya.`,
-          `Service request mil gayi (DEMO via ${uc.platform})! Ref: ${uc.ref}. ${uc.proName} kal aayenge. Family ko bata diya.`
-        )
-      );
+      const category = intent.intent === 'other_home_service' ? 'other_home_service' : intent.intent;
+      const scheduledAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // Next day
+      const label = category.replace(/_/g, ' ');
+      await approvalService.createApproval({
+        parentUser,
+        type: 'home_service',
+        summary: `${label} requested for ${scheduledAt.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}`,
+        details: { category, description: originalText, scheduledAt },
+        sourceMessage: originalText,
+        session,
+      });
       break;
     }
 
@@ -394,53 +438,30 @@ async function handlePendingState(session, parentUser, from, text) {
     const chosen = comparison[n - 1];
     const destination = session.pendingData.destination;
     const pickup = session.pendingData.pickup || 'Home';
+    const scheduledAt = session.pendingData.scheduledAt
+      ? new Date(session.pendingData.scheduledAt)
+      : new Date(Date.now() + 2 * 60 * 60 * 1000);
 
-    const booking = rideProviders.bookRide({
-      providerId: chosen.providerId,
-      vehicleId: chosen.vehicleId,
-      pickup,
-      destination,
-    });
-
-    const ride = await RideRequest.create({
-      parent: parentUser._id,
-      requestedBy: parentUser._id,
-      pickup: { address: pickup },
-      destination: { address: destination },
-      scheduledAt: session.pendingData.scheduledAt ? new Date(session.pendingData.scheduledAt) : new Date(Date.now() + 2 * 60 * 60 * 1000),
-      status: 'requested',
-      isDemo: true,
-      externalProvider: booking.providerId,
-      demoBookingRef: booking.ref,
-      estimatedFare: booking.price,
-      driverName: booking.driverName,
-      driverPhone: booking.driverPhone,
-      vehicleDetails: booking.vehicleDetails,
-      sourceChannel: 'whatsapp',
-    });
-
-    await notifyChildren(
+    await approvalService.createApproval({
       parentUser,
-      'Ride booked via WhatsApp — verification needed',
-      `Your parent booked a ride: ${booking.providerName} ${booking.vehicleLabel} to ${destination}, ₹${booking.price} (DEMO ref: ${booking.ref}). Please verify with them.`,
-      'booking_new',
-      { rideId: ride._id }
-    );
+      type: 'ride',
+      summary: `Ride to ${destination} — ${chosen.providerName} ${chosen.vehicleLabel}`,
+      amount: chosen.price,
+      details: {
+        providerId: chosen.providerId,
+        vehicleId: chosen.vehicleId,
+        pickup,
+        destination,
+        scheduledAt,
+      },
+      sourceMessage: text,
+      session,
+    });
 
     session.state = 'idle';
     session.pendingIntent = null;
     session.pendingData = null;
     await session.save();
-
-    await whatsappService.sendMessage(
-      from,
-      t(
-        lang,
-        `✅ Ride booked (DEMO): ${booking.providerName} ${booking.vehicleLabel} to ${destination}.\nFare: ₹${booking.price} (~${booking.etaMin} min away).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Your family has been informed to verify.\n\nFor a real ride right now, book here:\n${rideHandoffFor(booking.providerId, { pickup, destination }).url}`,
-        `✅ Ride book ho gayi (DEMO): ${booking.providerName} ${booking.vehicleLabel}, ${destination}.\nKiraya: ₹${booking.price} (~${booking.etaMin} min).\nRef: ${booking.ref}\nDriver: ${booking.driverName}. Parivaar ko verify karne ke liye bata diya.\n\nAsli ride turant book karne ke liye yahan kholein:\n${rideHandoffFor(booking.providerId, { pickup, destination }).url}`,
-        `✅ Ride booked (DEMO)! ${booking.providerName} ${booking.vehicleLabel} → ${destination}. ₹${booking.price}, ~${booking.etaMin} min. Ref: ${booking.ref}. Family ko verify karne bola hai.\n\nReal ride abhi book karne ke liye:\n${rideHandoffFor(booking.providerId, { pickup, destination }).url}`
-      )
-    );
     return true;
   }
 
@@ -454,42 +475,22 @@ async function handlePendingState(session, parentUser, from, text) {
     if (!chosen.length) return false;
 
     const items = chosen.map((m) => ({ itemId: m.id, name: m.name, quantity: 1, unitPrice: m.price }));
-    const placement = foodProviders.placeOrder({ items });
+    const total = items.reduce((sum, item) => sum + (item.unitPrice || 0) * item.quantity, 0);
 
-    const order = await FoodOrder.create({
-      parent: parentUser._id,
-      requestedBy: parentUser._id,
-      items,
-      isDemo: true,
-      status: 'placed',
-      restaurantName: placement.restaurantName,
-      demoBookingRef: placement.ref,
-      estimatedTotal: placement.estimatedTotal,
-      sourceChannel: 'whatsapp',
-    });
-
-    await notifyChildren(
+    await approvalService.createApproval({
       parentUser,
-      'Food order placed via WhatsApp — verification needed',
-      `Your parent ordered food from ${placement.restaurantName}: ${items.map((i) => i.name).join(', ')} — ₹${placement.estimatedTotal} (DEMO ref: ${placement.ref}). Please verify.`,
-      'booking_new',
-      { orderId: order._id }
-    );
+      type: 'food',
+      summary: `Food: ${items.map((i) => i.name).join(', ')}`,
+      amount: total,
+      details: { items },
+      sourceMessage: text,
+      session,
+    });
 
     session.state = 'idle';
     session.pendingIntent = null;
     session.pendingData = null;
     await session.save();
-
-    await whatsappService.sendMessage(
-      from,
-      t(
-        lang,
-        `✅ Order placed (DEMO): ${placement.restaurantName}.\nItems: ${items.map((i) => i.name).join(', ')}.\nTotal: ₹${placement.estimatedTotal} • ETA ~${placement.etaMin} min.\nRef: ${placement.ref}. Your family has been informed to verify.`,
-        `✅ Order ho gaya (DEMO): ${placement.restaurantName}.\nItems: ${items.map((i) => i.name).join(', ')}.\nTotal: ₹${placement.estimatedTotal} • ETA ~${placement.etaMin} min.\nRef: ${placement.ref}. Parivaar ko bata diya.`,
-        `✅ Order placed (DEMO)! ${items.map((i) => i.name).join(', ')} — ₹${placement.estimatedTotal}. Ref: ${placement.ref}. Family ko verify karne bola hai.`
-      )
-    );
     return true;
   }
 
@@ -556,87 +557,44 @@ async function sendFoodMenu(session, from) {
 
 /**
  * Daily needs (10-minute quick commerce): "dudh aur poha chahiye" → extract the
- * items from the Hinglish message and hand off to Blinkit / Zepto / Instamart
- * with the search pre-filled. Family is told so a child can help complete it.
+ * items and ask the linked child to approve. On approval the parent receives
+ * the Blinkit / Zepto / Instamart links with the search pre-filled.
  */
-async function handleGroceryOrder(session, parentUser, from, text, lang) {
+async function handleGroceryOrder(session, parentUser, text) {
+  if (!parentUser) return;
   const items = extractDailyNeeds(text);
-  const query = items.length ? items.slice(0, 3).join(' ') : 'grocery';
-  const links = quickCommerceHandoffs(query);
-  const linkLines = links.map((h) => `${h.providerName}: ${h.url}`).join('\n');
-  const itemList = items.length ? items.join(', ') : null;
 
-  if (parentUser) {
-    await notifyChildren(
-      parentUser,
-      'Daily items needed via WhatsApp',
-      itemList
-        ? `Your parent asked for daily items via WhatsApp: ${itemList}. 10-minute delivery links (Blinkit / Zepto / Instamart) were shared with them — please help complete the order if needed.`
-        : `Your parent asked for help with daily household items via WhatsApp. Quick-commerce links (Blinkit / Zepto / Instamart) were shared with them — please check in on them.`,
-      'booking_new',
-      {}
-    );
-  }
-
-  await whatsappService.sendMessage(
-    from,
-    t(
-      lang,
-      `${itemList ? `Items samajh aa gaye: ${itemList}.` : ''}10-minute delivery apps (your search is already filled in):\n${linkLines}\n\nJust open a link and complete the order — your family has been informed in case you need help.`,
-      `${itemList ? `Ye samajh aaya: ${itemList}.` : ''}10-minute delivery apps — search pehle se bhara hua hai:\n${linkLines}\n\nBas link kholein aur order poori karein. Family ko bata diya hai zaroorat ho to madad karenge.`,
-      `${itemList ? `Items: ${itemList}.` : ''}10-min apps (search pre-filled):\n${linkLines}\n\nLink kholein aur order complete karein. Family ko bata diya hai agar madad chahiye.`
-    )
-  );
+  await approvalService.createApproval({
+    parentUser,
+    type: 'grocery',
+    summary: items.length
+      ? `Daily items: ${items.slice(0, 6).join(', ')}`
+      : 'Daily household items',
+    details: { items },
+    sourceMessage: text,
+    session,
+  });
 }
 
 /**
- * Medicine ordering: "dolo 650 order karni hai" → hand off to Apollo Pharmacy /
- * 1mg / PharmEasy with the medicine pre-searched. Prescription safety line is
- * always included; family is notified so a child can verify the order.
+ * Medicine ordering: "dolo 650 order karni hai" → ask the linked child to
+ * approve. On approval the parent receives Apollo Pharmacy / 1mg / PharmEasy
+ * links with the medicine pre-searched, plus the prescription safety line.
  */
-async function handleMedicineOrder(session, parentUser, from, text, lang) {
-  const meds = extractMedicines(text);
-  const query = meds.length ? meds.slice(0, 3).join(' ') : 'medicine';
-  const links = medicineHandoffs(query);
-  const linkLines = links.map((h) => `${h.providerName}: ${h.url}`).join('\n');
-  const medList = meds.length ? meds.join(', ') : null;
-
-  if (parentUser) {
-    await notifyChildren(
-      parentUser,
-      'Medicine order needed via WhatsApp',
-      medList
-        ? `Your parent asked to order medicines via WhatsApp: ${medList}. Pharmacy links (Apollo / 1mg / PharmEasy) were shared with them — please verify against their prescription and help complete the order.`
-        : `Your parent asked for help ordering medicines via WhatsApp. Pharmacy links (Apollo / 1mg / PharmEasy) were shared with them — please check which medicine they need and help them order.`,
-      'booking_new',
-      {}
-    );
-  }
-
-  await whatsappService.sendMessage(
-    from,
-    t(
-      lang,
-      `${medList ? `Medicine samajh aa gayi: ${medList}.` : ''}Order karne ke liye yeh pharmacy apps kholein (search pehle se bhara hua hai):\n${linkLines}\n\n⚠️ Apne doctor ki prescription ke hi according dawai lein — apps par prescription upload karne ka option bhi hai. Family ko bata diya hai madad ke liye.`,
-      `${medList ? `Ye dawai samajh aayi: ${medList}.` : ''}Order ke liye yeh pharmacy apps kholein (search pehle se bhara hai):\n${linkLines}\n\n⚠️ Doctor ki prescription ke according hi lein — apps par prescription upload kar sakte hain. Family ko bata diya hai madad ke liye.`,
-      `${medList ? `Dawai: ${medList}.` : ''}Pharmacy apps (search pre-filled):\n${linkLines}\n\n⚠️ Sirf doctor ki prescription se dawai lein — apps par upload ka option hai. Family ko bata diya hai.`
-    )
-  );
-}
-
-/** Notify all linked family members (Notification + WhatsApp if number present). */async function notifyChildren(parentUser, title, body, type, data) {
+async function handleMedicineOrder(session, parentUser, text) {
   if (!parentUser) return;
-  const links = await FamilyLink.find({ parent: parentUser._id, status: 'active' }).populate('child', 'name phone');
-  for (const link of links) {
-    const childId = link.child?._id || link.child;
-    await Notification.create({ recipient: childId, type, title, body, data });
-    if (link.child?.phone) {
-      // The DEMO tag only ever appears on simulated traffic; real live messages
-      // to family members must read like normal WhatsApp messages.
-      const prefix = whatsappService.isDemo ? '[CareConnect • DEMO] ' : '';
-      await whatsappService.sendMessage(link.child.phone, `${prefix}${body}`);
-    }
-  }
+  const meds = extractMedicines(text);
+
+  await approvalService.createApproval({
+    parentUser,
+    type: 'medicine',
+    summary: meds.length
+      ? `Medicines: ${meds.slice(0, 6).join(', ')}`
+      : 'Medicines requested',
+    details: { medicines: meds },
+    sourceMessage: text,
+    session,
+  });
 }
 
 

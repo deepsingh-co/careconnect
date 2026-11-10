@@ -35,9 +35,13 @@ const ReminderEvent = require('../src/models/ReminderEvent');
 const ServiceProvider = require('../src/models/ServiceProvider');
 const ServiceBooking = require('../src/models/ServiceBooking');
 const Notification = require('../src/models/Notification');
+const ApprovalRequest = require('../src/models/ApprovalRequest');
+const OtpVerification = require('../src/models/OtpVerification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
 const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
 const whatsappService = require('../src/services/whatsappService');
+const approvalService = require('../src/services/approvalService');
+const baileysService = require('../src/services/baileysService');
 const webhookController = require('../src/controllers/webhookController');
 const aiService = require('../src/services/aiService');
 const ConversationSession = require('../src/models/ConversationSession');
@@ -61,6 +65,8 @@ beforeAll(async () => {
     ServiceProvider.deleteMany({}),
     ServiceBooking.deleteMany({}),
     Notification.deleteMany({}),
+    ApprovalRequest.deleteMany({}),
+    OtpVerification.deleteMany({}),
   ]);
 
   // Create test users via API
@@ -653,7 +659,7 @@ describe('WhatsApp Webhook', () => {
     expect(aiService.deterministicDetect('dawai ka reminder lagao').intent).toBe('medicine_reminder');
   });
 
-  test('Parent asking for daily items gets 10-minute quick-commerce links', async () => {
+  test('Parent asking for daily items asks the child to approve, then sends quick-commerce links', async () => {
     // Fresh parent (own number + own session) so no leftover conversation
     // state from earlier tests can interfere.
     const reg = await request(app).post('/api/auth/register').send({
@@ -661,9 +667,11 @@ describe('WhatsApp Webhook', () => {
     });
     expect(reg.status).toBe(201);
     const parentPhone = '+919999999993';
-    await FamilyLink.create({ parent: reg.body.data.user._id, child: childId, status: 'active', consentGivenAt: new Date() });
+    const parentUserId = reg.body.data.user._id;
+    await FamilyLink.create({ parent: parentUserId, child: childId, status: 'active', consentGivenAt: new Date() });
 
     const capture = whatsappService.startCapture();
+    let approval;
     try {
       await webhookController.handleIncomingMessage({
         from: parentPhone,
@@ -671,33 +679,57 @@ describe('WhatsApp Webhook', () => {
         text: 'dudh aur poha chahiye',
         type: 'text',
       });
+
+      const pending = capture.find((c) => c.to === parentPhone);
+      expect(pending).toBeTruthy();
+      expect(pending.text).toMatch(/approval ke liye|for approval/);
+
+      approval = await ApprovalRequest.findOne({ parent: parentUserId, type: 'grocery' });
+      expect(approval).toBeTruthy();
+      expect(approval.status).toBe('pending');
+
+      // The child receives Approve / Decline instructions with the code.
+      const familyMsg = capture.find((c) => c.to === '+919999999991');
+      expect(familyMsg).toBeTruthy();
+      expect(familyMsg.text).toContain('Family approval needed');
+      expect(familyMsg.text).toContain(`APPROVE ${approval.code}`);
+      expect(familyMsg.text).toContain(`DECLINE ${approval.code}`);
+      expect(familyMsg.text).toContain('Milk, Poha'); // extracted items in the summary
+
+      capture.length = 0;
+      await approvalService.respondToApproval({
+        code: approval.code,
+        action: 'approve',
+        responder: await User.findById(childId),
+      });
     } finally {
       whatsappService.stopCapture();
     }
 
-    const reply = capture.find((c) => c.to === parentPhone);
-    expect(reply).toBeTruthy();
-    expect(reply.text).toContain('blinkit.com/s/');
-    expect(reply.text).toContain('zeptonow.com/search?query=');
-    expect(reply.text).toContain('instamart');
-    expect(reply.text).toContain('Milk'); // extracted item pre-fills the search
-    expect(reply.text).toContain('Poha');
+    // Only after approval does the parent receive the order links.
+    const finalMsg = capture.find((c) => c.to === parentPhone);
+    expect(finalMsg).toBeTruthy();
+    expect(finalMsg.text).toContain('blinkit.com/s/');
+    expect(finalMsg.text).toContain('zeptonow.com/search?query=');
+    expect(finalMsg.text).toContain('instamart');
+    expect(finalMsg.text).toContain('Milk'); // extracted item pre-fills the search
+    expect(finalMsg.text).toContain('Poha');
 
-    // Family is alerted so a child can help complete the order.
-    const familyMsg = capture.find((c) => c.to === '+919999999991');
-    expect(familyMsg).toBeTruthy();
-    expect(familyMsg.text).toContain('Milk, Poha');
+    const updated = await ApprovalRequest.findById(approval._id);
+    expect(updated.status).toBe('approved');
   });
 
-  test('Parent asking for medicine gets pharmacy links + prescription note + family alert', async () => {
+  test('Parent asking for medicine asks the child to approve, then sends pharmacy links', async () => {
     const reg = await request(app).post('/api/auth/register').send({
       name: 'Medicine Parent', email: 'medicine.parent@test.local', password: 'TestPass123', role: 'parent', phone: '+919999999994',
     });
     expect(reg.status).toBe(201);
     const parentPhone = '+919999999994';
-    await FamilyLink.create({ parent: reg.body.data.user._id, child: childId, status: 'active', consentGivenAt: new Date() });
+    const parentUserId = reg.body.data.user._id;
+    await FamilyLink.create({ parent: parentUserId, child: childId, status: 'active', consentGivenAt: new Date() });
 
     const capture = whatsappService.startCapture();
+    let approval;
     try {
       await webhookController.handleIncomingMessage({
         from: parentPhone,
@@ -705,21 +737,36 @@ describe('WhatsApp Webhook', () => {
         text: 'dolo 650 order karni hai',
         type: 'text',
       });
+
+      approval = await ApprovalRequest.findOne({ parent: parentUserId, type: 'medicine' });
+      expect(approval).toBeTruthy();
+      expect(approval.summary).toContain('Paracetamol 650');
+
+      const familyMsg = capture.find((c) => c.to === '+919999999991');
+      expect(familyMsg).toBeTruthy();
+      expect(familyMsg.text).toContain(`APPROVE ${approval.code}`);
+      expect(familyMsg.text).toContain('Paracetamol 650');
+
+      capture.length = 0;
+      await approvalService.respondToApproval({
+        code: approval.code,
+        action: 'approve',
+        responder: await User.findById(childId),
+      });
     } finally {
       whatsappService.stopCapture();
     }
 
-    const reply = capture.find((c) => c.to === parentPhone);
-    expect(reply).toBeTruthy();
-    expect(reply.text).toContain('apollopharmacy.in/search-medicines?name=');
-    expect(reply.text).toContain('1mg.com/search/all?name=');
-    expect(reply.text).toContain('pharmeasy.in/search/all?name=');
-    expect(reply.text).toContain('Paracetamol 650'); // canonical name for "dolo"
-    expect(reply.text.toLowerCase()).toContain('prescription'); // safety line is always included
+    const finalMsg = capture.find((c) => c.to === parentPhone);
+    expect(finalMsg).toBeTruthy();
+    expect(finalMsg.text).toContain('apollopharmacy.in/search-medicines?name=');
+    expect(finalMsg.text).toContain('1mg.com/search/all?name=');
+    expect(finalMsg.text).toContain('pharmeasy.in/search/all?name=');
+    expect(finalMsg.text).toContain('Paracetamol%20650');
+    expect(finalMsg.text.toLowerCase()).toContain('prescription');
 
-    const familyMsg = capture.find((c) => c.to === '+919999999991');
-    expect(familyMsg).toBeTruthy();
-    expect(familyMsg.text).toContain('Paracetamol 650');
+    const updated = await ApprovalRequest.findById(approval._id);
+    expect(updated.status).toBe('approved');
   });
 });
 
@@ -731,6 +778,8 @@ describe('WhatsApp Simulator', () => {
   });
   // Dedicated parent so webhook tests (same phone number) cannot leak session state
   let simParentToken;
+  let simParentId;
+  const simParentPhone = '+919999999950';
 
   beforeAll(async () => {
     const res = await request(app).post('/api/auth/register').send({
@@ -738,9 +787,18 @@ describe('WhatsApp Simulator', () => {
       email: 'simparent@test.local',
       password: 'TestPass123',
       role: 'parent',
-      phone: '+919999999950',
+      phone: simParentPhone,
     });
     simParentToken = res.body.data.token;
+    simParentId = res.body.data.user._id;
+
+    // Approval requests need an active family link.
+    await FamilyLink.create({
+      parent: simParentId,
+      child: childId,
+      status: 'active',
+      consentGivenAt: new Date(),
+    });
   });
 
   const post = (text, token = simParentToken) =>
@@ -756,7 +814,7 @@ describe('WhatsApp Simulator', () => {
     expect(res.status).toBe(400);
   });
 
-  test('Food flow: menu is returned then order is placed', async () => {
+  test('Food flow: menu → approval request → approved order with OTP', async () => {
     const r1 = await post('Khana chahiye');
     expect(r1.status).toBe(200);
     expect(r1.body.data.replies.length).toBeGreaterThan(0);
@@ -766,11 +824,44 @@ describe('WhatsApp Simulator', () => {
 
     const r2 = await post('1');
     expect(r2.status).toBe(200);
-    expect(r2.body.data.replies[0].text).toContain('Order placed');
-    expect(r2.body.data.replies[0].text).toMatch(/ZOMATO-DEMO-/);
+    expect(r2.body.data.replies[0].text).toMatch(/approval ke liye|for approval/);
+
+    // The child receives the action prompt on WhatsApp.
+    const familyMsg = r2.body.data.familyNotified.find((c) => c.text.includes('APPROVE'));
+    expect(familyMsg).toBeTruthy();
+    expect(familyMsg.text).toContain('DECLINE');
+
+    const approval = await ApprovalRequest.findOne({
+      parent: simParentId,
+      type: 'food',
+      status: 'pending',
+    }).sort({ createdAt: -1 });
+    expect(approval).toBeTruthy();
+
+    const capture = whatsappService.startCapture();
+    let res;
+    try {
+      res = await request(app)
+        .post(`/api/approvals/${approval._id}/respond`)
+        .set('Authorization', `Bearer ${childToken}`)
+        .send({ action: 'approve' });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.approval.status).toBe('approved');
+    expect(res.body.data.approval.resultRef).toMatch(/ZOMATO-DEMO-/);
+    expect(res.body.data.approval.deliveryPartner.name).toBeTruthy();
+
+    const parentMsg = capture.find((c) => c.to === simParentPhone);
+    expect(parentMsg).toBeTruthy();
+    expect(parentMsg.text).toMatch(/Order confirm/);
+    expect(parentMsg.text).toMatch(/Delivery (partner|boy):/);
+    expect(parentMsg.text).toContain('Delivery OTP:');
   });
 
-  test('Ride flow: destination → quotes → booking', async () => {
+  test('Ride flow: destination → quotes → approval → approved ride with driver + OTP', async () => {
     const r1 = await post('Mujhe ride chahiye');
     expect(r1.body.data.replies[0].text).toContain('Destination');
 
@@ -780,15 +871,240 @@ describe('WhatsApp Simulator', () => {
     expect(r2.body.data.replies[0].text).toContain('book.olacabs.com');
 
     const r3 = await post('1');
-    expect(r3.body.data.replies[0].text).toContain('Ride booked');
-    expect(r3.body.data.replies[0].text).toMatch(/-DEMO-/);
-    expect(r3.body.data.replies[0].text).toMatch(/rapido\.bike|m\.uber\.com|book\.olacabs\.com/);
+    expect(r3.body.data.replies[0].text).toMatch(/approval ke liye|for approval/);
+
+    const approval = await ApprovalRequest.findOne({
+      parent: simParentId,
+      type: 'ride',
+      status: 'pending',
+    }).sort({ createdAt: -1 });
+    expect(approval).toBeTruthy();
+
+    const capture = whatsappService.startCapture();
+    let res;
+    try {
+      res = await request(app)
+        .post(`/api/approvals/${approval._id}/respond`)
+        .set('Authorization', `Bearer ${childToken}`)
+        .send({ action: 'approve' });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.approval.status).toBe('approved');
+    expect(res.body.data.approval.resultRef).toMatch(/-DEMO-/);
+    expect(res.body.data.approval.deliveryPartner.name).toBeTruthy();
+
+    const parentMsg = capture.find((c) => c.to === simParentPhone);
+    expect(parentMsg).toBeTruthy();
+    expect(parentMsg.text).toMatch(/Ride confirm/);
+    expect(parentMsg.text).toContain('Driver:');
+    expect(parentMsg.text).toContain('Ride OTP:');
   });
 
-  test('Home service message creates a demo booking reply', async () => {
+  test('Home service message creates an approval, then a demo booking on approve', async () => {
     const res = await post('Ghar ki safai karani hai');
     expect(res.status).toBe(200);
-    expect(res.body.data.replies[0].text).toContain('UC-DEMO-');
+    expect(res.body.data.replies[0].text).toMatch(/approval ke liye|for approval/);
+
+    const approval = await ApprovalRequest.findOne({
+      parent: simParentId,
+      type: 'home_service',
+      status: 'pending',
+    }).sort({ createdAt: -1 });
+    expect(approval).toBeTruthy();
+
+    const capture = whatsappService.startCapture();
+    let decision;
+    try {
+      decision = await request(app)
+        .post(`/api/approvals/${approval._id}/respond`)
+        .set('Authorization', `Bearer ${childToken}`)
+        .send({ action: 'approve' });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    expect(decision.status).toBe(200);
+    expect(decision.body.data.approval.status).toBe('approved');
+    expect(decision.body.data.approval.resultRef).toMatch(/^UC-DEMO-/);
+
+    const parentMsg = capture.find((c) => c.to === simParentPhone);
+    expect(parentMsg).toBeTruthy();
+    expect(parentMsg.text).toMatch(/Service book/);
+    expect(parentMsg.text).toContain('Professional:');
+    expect(parentMsg.text).toContain('Service OTP:');
+  });
+});
+
+// ─── Family Approvals ─────────────────────────────────────────────────────────
+describe('Family Approvals', () => {
+  let outsiderToken;
+
+  beforeAll(async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      name: 'Outsider Child',
+      email: 'outsider.child@test.local',
+      password: 'TestPass123',
+      role: 'child',
+      phone: '+919999999992',
+    });
+    outsiderToken = reg.body.data.token;
+  });
+
+  const simParent = () => User.findOne({ email: 'simparent@test.local' });
+
+  test('A linked child can list a parent request and decline it', async () => {
+    const parent = await simParent();
+    const { approval } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'grocery',
+      summary: 'Daily items: Milk',
+      details: { items: ['Milk'] },
+    });
+    expect(approval).toBeTruthy();
+
+    const list = await request(app)
+      .get('/api/approvals?status=pending')
+      .set('Authorization', `Bearer ${childToken}`);
+    expect(list.status).toBe(200);
+    expect(list.body.data.approvals.some((a) => a._id === String(approval._id))).toBe(true);
+
+    const res = await request(app)
+      .post(`/api/approvals/${approval._id}/respond`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ action: 'decline', reason: 'Will buy at home' });
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.approval.status).toBe('declined');
+    expect(res.body.data.approval.deliveryOtpHash).toBeUndefined();
+  });
+
+  test('An unlinked child cannot approve another family\'s request', async () => {
+    const parent = await simParent();
+    const { approval } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'grocery',
+      summary: 'Daily items: Curd',
+      details: { items: ['Curd'] },
+    });
+
+    const res = await request(app)
+      .post(`/api/approvals/${approval._id}/respond`)
+      .set('Authorization', `Bearer ${outsiderToken}`)
+      .send({ action: 'approve' });
+
+    expect(res.status).toBe(403);
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.status).toBe('pending');
+  });
+
+  test('Approval codes are single-use', async () => {
+    const parent = await simParent();
+    const { approval } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'grocery',
+      summary: 'Daily items: Bread',
+      details: { items: ['Bread'] },
+    });
+
+    const first = await request(app)
+      .post(`/api/approvals/${approval._id}/respond`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ action: 'approve' });
+    expect(first.status).toBe(200);
+    expect(first.body.data.approval.status).toBe('approved');
+
+    const second = await request(app)
+      .post(`/api/approvals/${approval._id}/respond`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ action: 'approve' });
+    expect(second.status).toBe(409);
+  });
+
+  test('Expired requests are marked expired and the parent is notified', async () => {
+    const parent = await simParent();
+    const approval = await ApprovalRequest.create({
+      parent: parent._id,
+      requestedBy: parent._id,
+      type: 'grocery',
+      status: 'pending',
+      code: `EX${Date.now().toString(36).toUpperCase().slice(-6)}`,
+      summary: 'Daily items: Tea',
+      details: { items: ['Tea'] },
+      expiresAt: new Date(Date.now() - 1000),
+    });
+
+    const expired = await approvalService.expireStaleApprovals();
+    expect(expired).toBeGreaterThanOrEqual(1);
+
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.status).toBe('expired');
+
+    const notification = await Notification.findOne({
+      recipient: parent._id,
+      type: 'approval_expired',
+      'data.approvalId': approval._id,
+    });
+    expect(notification).toBeTruthy();
+  });
+
+  test('A child can approve with a plain WhatsApp text command', async () => {
+    const parent = await simParent();
+    const { approval } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'grocery',
+      summary: 'Daily items: Sugar',
+      details: { items: ['Sugar'] },
+    });
+
+    const capture = whatsappService.startCapture();
+    try {
+      await webhookController.handleIncomingMessage({
+        from: '+919999999991',
+        id: `wa_approve_${Date.now()}`,
+        text: `APPROVE ${approval.code}`,
+        type: 'text',
+      });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.status).toBe('approved');
+    expect(capture.some((c) => c.to === '+919999999991')).toBe(true);
+  });
+
+  test('Button ids and Meta button payloads are parsed correctly', () => {
+    expect(approvalService.parseApprovalCommand(`APPROVE ABC123`)).toEqual({
+      action: 'approve',
+      code: 'ABC123',
+    });
+    expect(approvalService.parseApprovalCommand('decline')).toEqual({
+      action: 'decline',
+      code: null,
+    });
+    expect(approvalService.parseButtonId('decline_ABC123')).toEqual({
+      action: 'decline',
+      code: 'ABC123',
+    });
+    expect(
+      baileysService.extractButtonId({
+        buttonsResponseMessage: { selectedButtonId: 'approve_ABC123' },
+      })
+    ).toBe('approve_ABC123');
+
+    const payload = whatsappService.buildMetaButtonsPayload('+919999999991', {
+      text: 'Approve this request?',
+      buttons: [
+        { id: 'approve_ABC123', title: 'Approve' },
+        { id: 'decline_ABC123', title: 'Decline' },
+      ],
+    });
+    expect(payload.type).toBe('interactive');
+    expect(payload.interactive.action.buttons[0].reply.id).toBe('approve_ABC123');
+    expect(payload.interactive.action.buttons[1].reply.title).toBe('Decline');
   });
 });
 

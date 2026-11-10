@@ -4,7 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import Logo from '../components/Logo';
 import {
   Bell, Menu, X, LayoutDashboard, Pill, Briefcase, Car, UtensilsCrossed,
-  Users, HeartPulse, Shield, Settings, LogOut, ChevronRight,
+  Users, HeartPulse, Shield, Settings, LogOut, ChevronRight, ShieldCheck,
 } from 'lucide-react';
 
 const navByRole = {
@@ -25,6 +25,7 @@ const navByRole = {
     {
       heading: 'Family',
       items: [
+        { to: '/approvals', label: 'Approvals', icon: ShieldCheck },
         { to: '/family', label: 'Family', icon: Users },
         { to: '/emergency', label: 'Emergency', icon: HeartPulse, tone: 'danger' },
         { to: '/notifications', label: 'Alerts', icon: Bell },

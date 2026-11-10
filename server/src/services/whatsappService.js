@@ -120,6 +120,74 @@ class WhatsappService {
   }
 
   /**
+   * Send an Approve / Decline prompt. Providers that cannot render interactive
+   * buttons (Twilio, an unlinked Baileys session) automatically receive the
+   * `fallbackText`, which always contains `APPROVE <code>` / `DECLINE <code>`
+   * so the child can still respond with plain text.
+   */
+  async sendButtons(to, { text, buttons = [], footer = null, fallbackText = null } = {}) {
+    const fallback = fallbackText || text;
+
+    if (this._capture) {
+      // The simulator renders text only; capture the fallback so the reply is
+      // still visible and actionable there.
+      this._capture.push({ to, text: fallback, buttons, at: new Date().toISOString() });
+    }
+
+    if (this.isDemo) {
+      console.log(`[WhatsApp DEMO] buttons → ${to}: ${fallback}`);
+      return { success: true, demo: true, to, buttons };
+    }
+
+    if (this.provider === 'meta') {
+      try {
+        return await this._postMeta(this.buildMetaButtonsPayload(to, { text, buttons, footer }));
+      } catch (err) {
+        // Interactive messages need an open customer-service window. A text
+        // fallback keeps the approval reachable if Meta rejects the buttons.
+        console.error('[WhatsApp Meta] Button send failed, sending text fallback:', err.message);
+        return this._sendMeta(to, fallback);
+      }
+    }
+
+    if (this.provider === 'baileys') {
+      try {
+        return await baileysService.sendButtons(to, { text, buttons, footer });
+      } catch (err) {
+        console.error('[WhatsApp Baileys] Button send failed, sending text fallback:', err.message);
+        return this._sendBaileys(to, fallback);
+      }
+    }
+
+    // Twilio sandbox/production text-only fallback.
+    return this._sendTwilio(to, fallback);
+  }
+
+  /** Meta Cloud API interactive reply-buttons payload (max 3 buttons). */
+  buildMetaButtonsPayload(to, { text, buttons = [], footer = null }) {
+    const payload = {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'interactive',
+      interactive: {
+        type: 'button',
+        body: { text: String(text || '').slice(0, 1024) },
+        action: {
+          buttons: (buttons || []).slice(0, 3).map((button) => ({
+            type: 'reply',
+            reply: {
+              id: String(button.id || '').slice(0, 256),
+              title: String(button.title || '').slice(0, 20),
+            },
+          })),
+        },
+      },
+    };
+    if (footer) payload.interactive.footer = { text: String(footer).slice(0, 60) };
+    return payload;
+  }
+
+  /**
    * Send a real OTP to a phone number on WhatsApp.
    * - Baileys: freeform text — WhatsApp Web has no template approval step.
    * - Meta Cloud API: uses a pre-approved AUTHENTICATION template (required for

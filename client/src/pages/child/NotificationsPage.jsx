@@ -17,6 +17,10 @@ const typeColors = {
   emergency_alert: 'bg-red-100 border-red-300',
   family_invitation: 'bg-purple-50 border-purple-200',
   family_link_accepted: 'bg-green-50 border-green-200',
+  approval_request: 'bg-amber-50 border-amber-200',
+  approval_approved: 'bg-emerald-50 border-emerald-200',
+  approval_declined: 'bg-rose-50 border-rose-200',
+  approval_expired: 'bg-gray-50 border-gray-200',
   system: 'bg-gray-50 border-gray-200',
 };
 

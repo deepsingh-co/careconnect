@@ -12,6 +12,7 @@ const Notification = require('../models/Notification');
 const User = require('../models/User');
 const ParentProfile = require('../models/ParentProfile');
 const whatsappService = require('../services/whatsappService');
+const approvalService = require('../services/approvalService');
 const config = require('../config');
 
 const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -207,6 +208,11 @@ async function processMissedCheckins() {
   }
 }
 
+// ── Expired family approvals ──────────────────────────────────────────────────
+async function processExpiredApprovals() {
+  return approvalService.expireStaleApprovals();
+}
+
 // ── Start ─────────────────────────────────────────────────────────────────────
 function startJobs() {
   if (config.env === 'test') return;
@@ -214,6 +220,7 @@ function startJobs() {
   // Every minute: create due reminder events (idempotent)
   cron.schedule('* * * * *', () => {
     processDueReminders().catch((e) => console.error('[Job] processDueReminders:', e.message));
+    processExpiredApprovals().catch((e) => console.error('[Job] processExpiredApprovals:', e.message));
   });
 
   // Every 5 minutes: follow-ups + missed check-ins
@@ -236,4 +243,5 @@ module.exports = {
   processMissedFollowUps,
   scheduleCheckins,
   processMissedCheckins,
+  processExpiredApprovals,
 };

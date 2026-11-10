@@ -49,8 +49,8 @@ stored in `server/.baileys-auth/` (gitignored) and survive restarts.
 
 ### 3. Go live and test end-to-end
 
-1. Flip the **Demo → Live** toggle on the same card (refused until the number
-   is linked).
+1. Confirm the card shows `Linked: +91…` (there is no Demo → Live toggle;
+   WhatsApp is live as soon as a number or Meta/Twilio credentials are set).
 2. Send a real test message:
 
    ```bash
@@ -59,8 +59,8 @@ stored in `server/.baileys-auth/` (gitignored) and survive restarts.
 
    (talks to the running server's admin API — start the server first)
 
-3. Walk your flow: parent WhatsApp → `khana chahiye` / `ride chahiye` →
-   replies, order/booking refs, family notifications.
+3. Walk your flow: parent WhatsApp → `khana chahiye` / `ride chahiye` → the
+   linked child gets **Approve / Decline** → approve → order + delivery OTP.
 
 ### How inbound messages work
 
@@ -78,16 +78,28 @@ variants (khaana/khana, cheeni/chini, sabjee/sabji, dawai/dawa).
 
 | Say this | Bot does this |
 |---|---|
-| `khana chahiye`, `bhookh lagi hai` | Food menu + Swiggy/Zomato links |
-| `ride chahiye`, `hospital jana hai` | Ola/Uber/Rapido comparison + booking |
-| `dudh chahiye`, `sugar aur poha chahiye` | **10-minute quick commerce** — items extracted, Blinkit / Zepto / Swiggy Instamart links with the **search pre-filled** |
-| `dawai order karni hai`, `dolo 650 chahiye` | **Medicine ordering** — Apollo Pharmacy / 1mg / PharmEasy links with the medicine pre-searched, plus a prescription-safety note |
+| `khana chahiye`, `bhookh lagi hai` | Food menu → child approval → order + delivery OTP |
+| `ride chahiye`, `hospital jana hai` | Ola/Uber/Rapido comparison → child approval → ride + driver OTP |
+| `dudh chahiye`, `sugar aur poha chahiye` | Items extracted → child approval → Blinkit / Zepto / Swiggy Instamart links with the **search pre-filled** |
+| `dawai order karni hai`, `dolo 650 chahiye` | Child approval → Apollo Pharmacy / 1mg / PharmEasy links with the medicine pre-searched, plus a prescription-safety note |
 | `dawai yaad dilana`, `medicine reminder` | Medicine reminder flow (distinct from ordering) |
-| `safai karni hai`, `madad kariye` | Home service / emergency handling |
+| `safai karni hai`, `madad kariye` | Home service approval / emergency handling |
 
-Every grocery/medicine request also **notifies the linked family** so a child
-can help complete the order. The bot never claims an order was placed — it
-hands off to the provider's own app/site (they have no public consumer APIs).
+### Family approval flow (Approve / Decline)
+
+1. The parent's message is parsed and an `ApprovalRequest` is created — **no
+   order is placed yet**.
+2. Every actively linked child gets an in-app notification and a WhatsApp
+   message with **Approve / Decline** buttons (or the text commands
+   `APPROVE <code>` / `DECLINE <code>` when buttons are unavailable).
+3. The first child to respond wins (atomic claim). Only active `FamilyLink`
+   members can respond.
+4. **Approve** → the order/booking is placed, then the parent receives the
+   delivery partner's name, phone, ETA and a 4-digit delivery OTP on WhatsApp.
+   Grocery/medicine approvals send provider hand-off links instead of an OTP.
+5. **Decline** → nothing is ordered; the parent is told the family will help.
+6. Unanswered requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
+   Children can also approve from **Dashboard → Approvals**.
 
 ### Production notes
 
@@ -172,6 +184,7 @@ META_WHATSAPP_OTP_TEMPLATE_BUTTON=true
 - Complete **Business Verification** and add a payment method (WhatsApp pricing is per conversation; service conversations have a free monthly tier).
 - Replace the temporary token with a permanent system-user token.
 - Note the **24-hour customer service window**: freeform replies (the bot chat, confirmations) only work within 24h of the user's last message — which is fine for a chat bot. Reminders sent later may need an approved **Utility** template; the scheduler marks failed deliveries in the DB and keeps running.
+- **Family approval prompts** are also business-initiated messages to the child. Outside the child's 24h window, Meta requires an approved **Utility** template (body variables for parent name, request summary and code). Baileys needs no template; Twilio falls back to text automatically. Approve/Decline text commands remain valid on every channel.
 
 ---
 
@@ -227,6 +240,7 @@ TWILIO_WHATSAPP_FROM=+14155238886
 | `META_WHATSAPP_OTP_TEMPLATE` | `otp_verification` | approved auth template name |
 | `META_WHATSAPP_OTP_TEMPLATE_LANG` | `en_US` | template language code |
 | `META_WHATSAPP_OTP_TEMPLATE_BUTTON` | `true` | if template has copy-code button |
+| `APPROVAL_EXPIRES_MINUTES` | `15` | how long a child has to approve a parent request |
 | `CLIENT_URL` | `https://...` | CORS origin for the web app |
 | `VITE_API_URL` | `https://.../api` | build-time var for the client |
 

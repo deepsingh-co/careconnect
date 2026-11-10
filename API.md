@@ -157,6 +157,26 @@ Returns demo food catalogue.
 
 ---
 
+## Family Approvals
+
+WhatsApp requests from a parent are placed only after a linked child approves.
+
+### GET /api/approvals?status=pending&limit=50
+
+Parents see their own requests, children see requests for linked parents, admins
+see all. The delivery OTP is never returned — only its hash is stored.
+
+### GET /api/approvals/:id
+
+### POST /api/approvals/:id/respond
+**Body:** `{ "action": "approve|decline", "reason": "optional" }`
+
+Only an active linked child can respond. The first response wins; a second
+response returns `409`. Approving places the order and sends the parent the
+delivery partner details + delivery OTP on WhatsApp.
+
+---
+
 ## Notifications
 
 ### GET /api/notifications?unread=true&page=1&limit=30

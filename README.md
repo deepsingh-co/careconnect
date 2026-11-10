@@ -104,6 +104,33 @@ Open http://localhost:5173
 
 All demo/simulated features are clearly labelled in the UI and API responses.
 
+## Family Approval Automation
+
+Parent requests are no longer ordered blindly. The WhatsApp pipeline parses the
+intent, then asks a linked child to approve before anything is placed:
+
+1. Parent sends a request on WhatsApp (food, ride, home service, daily items or
+   medicines).
+2. CareConnect creates an `ApprovalRequest` and sends the child an Approve /
+   Decline prompt on WhatsApp, plus an in-app notification.
+3. The first child response wins (atomic `pending → processing` claim) and must
+   come from an active `FamilyLink`.
+4. **Approve** → CareConnect places the order/booking, then sends the parent the
+   delivery partner's name, phone, ETA and a 4-digit delivery OTP on WhatsApp.
+   Grocery and medicine approvals send provider hand-off links instead of an OTP.
+5. **Decline** → no order is placed; the parent is told that their family will
+   help. Requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
+
+Children can also approve from the dashboard at `/approvals` (a fallback when
+WhatsApp buttons are unavailable). Text replies `APPROVE <code>` and
+`DECLINE <code>` always work.
+
+**Production note:** Meta Cloud API only allows free-form interactive buttons
+inside an open 24-hour customer-service window. Outside that window a
+business-initiated approval template must be approved in Meta Business Manager;
+Baileys sends buttons without template approval. Twilio falls back to text
+commands automatically.
+
 ## Security Features
 
 - Bcrypt password hashing (10+ rounds)
