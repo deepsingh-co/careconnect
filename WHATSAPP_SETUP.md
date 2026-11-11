@@ -91,7 +91,8 @@ variants (khaana/khana, cheeni/chini, sabjee/sabji, dawai/dawa).
    order is placed yet**.
 2. Every actively linked child gets an in-app notification and a WhatsApp
    message with **Approve / Decline** buttons (or the text commands
-   `APPROVE <code>` / `DECLINE <code>` when buttons are unavailable).
+   `APPROVE <code>` / `DECLINE <code>` when buttons are unavailable). On Meta,
+   this business-initiated prompt uses the approved Utility template below.
 3. The first child to respond wins (atomic claim). Only active `FamilyLink`
    members can respond.
 4. **Approve** → the order/booking is placed, then the parent receives the
@@ -103,6 +104,93 @@ variants (khaana/khana, cheeni/chini, sabjee/sabji, dawai/dawa).
 6. **Decline** → nothing is ordered; the parent is told the family will help.
 7. Unanswered requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
    Children can also approve from **Dashboard → Approvals**.
+
+### Meta Utility template for child approval
+
+Children usually have **not** messaged your business in the last 24 hours, so
+Meta rejects freeform/interactive messages to them. The approval prompt must be
+an approved **Utility** template with two quick-reply buttons.
+
+Create it once in **WhatsApp Manager → Account tools → Message templates**:
+
+| Field | Value |
+|-------|-------|
+| Name | `careconnect_approval_request` |
+| Category | `Utility` |
+| Language | English (US) — `en_US` |
+| Buttons | Quick reply **Approve** (index 0), Quick reply **Decline** (index 1) |
+
+Body (paste exactly; the numbers are variables):
+
+```
+CareConnect - family approval needed
+
+{{1}} has requested {{2}}.
+Amount: {{3}}
+Approval code: {{4}}
+
+Tap Approve or Decline below. If the buttons do not work, reply APPROVE or DECLINE followed by the approval code.
+This request expires in {{5}} minutes.
+```
+
+Sample values for Meta's review: `Ramesh Kumar`, `Food: Poha`, `₹80`,
+`AB12CD`, `15`.
+
+Then set:
+
+```
+META_WHATSAPP_APPROVAL_TEMPLATE=careconnect_approval_request
+META_WHATSAPP_APPROVAL_TEMPLATE_LANG=en_US
+```
+
+The exact payload CareConnect sends (dynamic button payloads carry the request
+code, so one template works for every request):
+
+```json
+{
+  "messaging_product": "whatsapp",
+  "to": "919999999991",
+  "type": "template",
+  "template": {
+    "name": "careconnect_approval_request",
+    "language": { "code": "en_US" },
+    "components": [
+      {
+        "type": "body",
+        "parameters": [
+          { "type": "text", "text": "Ramesh Kumar" },
+          { "type": "text", "text": "Food: Poha" },
+          { "type": "text", "text": "₹80" },
+          { "type": "text", "text": "AB12CD" },
+          { "type": "text", "text": "15" }
+        ]
+      },
+      {
+        "type": "button",
+        "sub_type": "quick_reply",
+        "index": "0",
+        "parameters": [{ "type": "payload", "payload": "approve_AB12CD" }]
+      },
+      {
+        "type": "button",
+        "sub_type": "quick_reply",
+        "index": "1",
+        "parameters": [{ "type": "payload", "payload": "decline_AB12CD" }]
+      }
+    ]
+  }
+}
+```
+
+If `META_WHATSAPP_APPROVAL_TEMPLATE` is empty — or the template send fails
+(e.g. still in review) — CareConnect falls back to interactive buttons, then to
+plain text with `APPROVE <code>` / `DECLINE <code>`. That fallback only reaches
+children who already have an open 24-hour window.
+
+> Parent-facing messages (request received, order confirmed, OTP) stay inside
+> the 24-hour window because the parent initiated the conversation, so they can
+> remain freeform. The child's button tap also opens a 24-hour window for the
+> post-approval confirmation.
 
 ### Production notes
 
@@ -243,6 +331,8 @@ TWILIO_WHATSAPP_FROM=+14155238886
 | `META_WHATSAPP_OTP_TEMPLATE` | `otp_verification` | approved auth template name |
 | `META_WHATSAPP_OTP_TEMPLATE_LANG` | `en_US` | template language code |
 | `META_WHATSAPP_OTP_TEMPLATE_BUTTON` | `true` | if template has copy-code button |
+| `META_WHATSAPP_APPROVAL_TEMPLATE` | `careconnect_approval_request` | approved Utility template for child approval (empty = interactive fallback) |
+| `META_WHATSAPP_APPROVAL_TEMPLATE_LANG` | `en_US` | approval template language code |
 | `APPROVAL_EXPIRES_MINUTES` | `15` | how long a child has to approve a parent request |
 | `DELIVERY_HANDOFF_EXPIRES_HOURS` | `24` | validity of the rider handoff link |
 | `DELIVERY_OTP_TTL_HOURS` | `24` | validity of the 4-digit delivery OTP |

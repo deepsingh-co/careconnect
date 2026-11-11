@@ -163,6 +163,101 @@ class WhatsappService {
     return this._sendTwilio(to, fallback);
   }
 
+  /**
+   * Send the family-approval prompt.
+   *
+   * On Meta, a pre-approved Utility template is used when configured, because
+   * the child has usually not messaged the business in the last 24 hours and
+   * freeform/interactive messages would be rejected. If the template is not
+   * configured (or its send fails), fall back to interactive buttons and then
+   * plain text — all three carry `approve_<code>` / `decline_<code>`.
+   */
+  async sendApprovalPrompt(to, payload = {}) {
+    const template = config.whatsapp.meta.approvalTemplate || {};
+
+    if (this.isDemo || this.provider !== 'meta' || !template.name) {
+      return this.sendButtons(to, payload);
+    }
+
+    try {
+      return await this._postMeta(
+        this.buildMetaApprovalTemplatePayload(to, payload.template || {})
+      );
+    } catch (err) {
+      console.error(
+        '[WhatsApp Meta] Approval template failed; falling back to interactive buttons:',
+        err.message
+      );
+      return this.sendButtons(to, payload);
+    }
+  }
+
+  /**
+   * Exact Meta Cloud API payload for the approval Utility template.
+   *
+   * Template body (create it in WhatsApp Manager with these placeholders):
+   *   CareConnect - family approval needed
+   *
+   *   {{1}} has requested {{2}}.
+   *   Amount: {{3}}
+   *   Approval code: {{4}}
+   *
+   *   Tap Approve or Decline below. If the buttons do not work, reply APPROVE
+   *   or DECLINE followed by the approval code.
+   *   This request expires in {{5}} minutes.
+   *
+   * Buttons: Quick reply "Approve" (index 0), Quick reply "Decline" (index 1).
+   * The button payloads are supplied per message, so the same template works
+   * for every request code.
+   *
+   * Exposed for tests and docs; `override` can replace the template name/lang.
+   */
+  buildMetaApprovalTemplatePayload(to, params = {}, override = {}) {
+    const { parentName, summary, amountText, code, expiresMinutes, lang } = params;
+    const template = { ...config.whatsapp.meta.approvalTemplate, ...override };
+
+    if (!template.name) {
+      throw new Error('Meta approval template is not configured.');
+    }
+    if (!code) {
+      throw new Error('Approval code is required for the Meta approval template.');
+    }
+
+    return {
+      messaging_product: 'whatsapp',
+      to,
+      type: 'template',
+      template: {
+        name: template.name,
+        language: { code: lang || template.lang || 'en_US' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: String(parentName || 'Your parent') },
+              { type: 'text', text: String(summary || 'A new request') },
+              { type: 'text', text: String(amountText || 'Not specified') },
+              { type: 'text', text: String(code) },
+              { type: 'text', text: String(expiresMinutes || 15) },
+            ],
+          },
+          {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: '0',
+            parameters: [{ type: 'payload', payload: `approve_${code}` }],
+          },
+          {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: '1',
+            parameters: [{ type: 'payload', payload: `decline_${code}` }],
+          },
+        ],
+      },
+    };
+  }
+
   /** Meta Cloud API interactive reply-buttons payload (max 3 buttons). */
   buildMetaButtonsPayload(to, { text, buttons = [], footer = null }) {
     const payload = {

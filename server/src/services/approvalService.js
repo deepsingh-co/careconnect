@@ -117,12 +117,12 @@ async function safeSend(to, text) {
   }
 }
 
-async function safeSendButtons(to, payload) {
+async function safeSendApprovalPrompt(to, payload) {
   if (!to) return null;
   try {
-    return await whatsappService.sendButtons(to, payload);
+    return await whatsappService.sendApprovalPrompt(to, payload);
   } catch (err) {
-    console.error(`[Approval] WhatsApp buttons to ${to} failed:`, err.message);
+    console.error(`[Approval] WhatsApp prompt to ${to} failed:`, err.message);
     try {
       return await whatsappService.sendMessage(to, payload.fallbackText || payload.text);
     } catch (fallbackErr) {
@@ -327,6 +327,9 @@ async function createApproval({
     expiresAt: new Date(Date.now() + APPROVAL_TTL_MINUTES * 60 * 1000),
   });
 
+  const amountText =
+    amount === null || amount === undefined ? 'Not specified' : formatRupees(amount);
+
   let notifiedChildren = 0;
   for (const link of links) {
     const child = link.child;
@@ -356,15 +359,23 @@ async function createApproval({
         summary,
         amount,
       });
-      // The fallback text contains the codes, so approval still works on
-      // providers that cannot render interactive buttons (Twilio/sandbox).
-      await safeSendButtons(child.phone, {
+      // Meta uses the approved Utility template here (children are usually
+      // outside the 24h window); other providers get interactive buttons and
+      // the same codes in text form.
+      await safeSendApprovalPrompt(child.phone, {
         text,
         buttons: [
           { id: `approve_${approval.code}`, title: 'Approve' },
           { id: `decline_${approval.code}`, title: 'Decline' },
         ],
         fallbackText: text,
+        template: {
+          parentName: parentUser.name,
+          summary,
+          amountText,
+          code: approval.code,
+          expiresMinutes: APPROVAL_TTL_MINUTES,
+        },
       });
     }
   }

@@ -34,6 +34,15 @@ const config = {
         lang: process.env.META_WHATSAPP_OTP_TEMPLATE_LANG || 'en_US',
         hasButton: process.env.META_WHATSAPP_OTP_TEMPLATE_BUTTON === 'true',
       },
+      approvalTemplate: {
+        // Pre-approved Meta UTILITY template used to ask a child to approve a
+        // parent's request. Children have usually not messaged us in the last
+        // 24h, so a template is REQUIRED for this business-initiated message.
+        // Leave the name empty to keep using interactive buttons (which only
+        // work inside an open 24h customer-service window).
+        name: process.env.META_WHATSAPP_APPROVAL_TEMPLATE || '',
+        lang: process.env.META_WHATSAPP_APPROVAL_TEMPLATE_LANG || 'en_US',
+      },
     },
     twilio: {
       accountSid: process.env.TWILIO_ACCOUNT_SID || '',

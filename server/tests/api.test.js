@@ -1107,6 +1107,118 @@ describe('Family Approvals', () => {
     expect(payload.interactive.action.buttons[0].reply.id).toBe('approve_ABC123');
     expect(payload.interactive.action.buttons[1].reply.title).toBe('Decline');
   });
+
+  test('Meta approval Utility template payload is exact', () => {
+    const payload = whatsappService.buildMetaApprovalTemplatePayload(
+      '+919999999991',
+      {
+        parentName: 'Ramesh Kumar',
+        summary: 'Food: Poha',
+        amountText: '₹80',
+        code: 'AB12CD',
+        expiresMinutes: 15,
+      },
+      { name: 'careconnect_approval_request', lang: 'en_US' }
+    );
+
+    expect(payload).toEqual({
+      messaging_product: 'whatsapp',
+      to: '+919999999991',
+      type: 'template',
+      template: {
+        name: 'careconnect_approval_request',
+        language: { code: 'en_US' },
+        components: [
+          {
+            type: 'body',
+            parameters: [
+              { type: 'text', text: 'Ramesh Kumar' },
+              { type: 'text', text: 'Food: Poha' },
+              { type: 'text', text: '₹80' },
+              { type: 'text', text: 'AB12CD' },
+              { type: 'text', text: '15' },
+            ],
+          },
+          {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: '0',
+            parameters: [{ type: 'payload', payload: 'approve_AB12CD' }],
+          },
+          {
+            type: 'button',
+            sub_type: 'quick_reply',
+            index: '1',
+            parameters: [{ type: 'payload', payload: 'decline_AB12CD' }],
+          },
+        ],
+      },
+    });
+
+    expect(() =>
+      whatsappService.buildMetaApprovalTemplatePayload('+919999999991', { code: 'AB12CD' }, { name: '' })
+    ).toThrow(/not configured/);
+    expect(() =>
+      whatsappService.buildMetaApprovalTemplatePayload(
+        '+919999999991',
+        { parentName: 'Ramesh Kumar' },
+        { name: 'careconnect_approval_request' }
+      )
+    ).toThrow(/code is required/);
+  });
+
+  test('sendApprovalPrompt uses the Meta Utility template when configured', async () => {
+    const originalProvider = whatsappService.provider;
+    const originalPostMeta = whatsappService._postMeta;
+    const originalToken = config.whatsapp.meta.token;
+    const originalPhoneId = config.whatsapp.meta.phoneNumberId;
+    const originalTemplate = config.whatsapp.meta.approvalTemplate;
+    const sent = [];
+
+    try {
+      whatsappService.provider = 'meta';
+      config.whatsapp.meta.token = 'test-token';
+      config.whatsapp.meta.phoneNumberId = 'test-phone-id';
+      config.whatsapp.meta.approvalTemplate = {
+        name: 'careconnect_approval_request',
+        lang: 'en_US',
+      };
+      whatsappService._postMeta = async (payload) => {
+        sent.push(payload);
+        return { success: true, messageId: 'wamid.test' };
+      };
+
+      const result = await whatsappService.sendApprovalPrompt('+919999999991', {
+        text: 'fallback text',
+        buttons: [{ id: 'approve_AB12CD', title: 'Approve' }],
+        template: {
+          parentName: 'Ramesh Kumar',
+          summary: 'Food: Poha',
+          amountText: '₹80',
+          code: 'AB12CD',
+          expiresMinutes: 15,
+        },
+      });
+
+      expect(result.success).toBe(true);
+      expect(sent).toHaveLength(1);
+      expect(sent[0].type).toBe('template');
+      expect(sent[0].template.name).toBe('careconnect_approval_request');
+      expect(sent[0].template.components[1].parameters[0]).toEqual({
+        type: 'payload',
+        payload: 'approve_AB12CD',
+      });
+      expect(sent[0].template.components[2].parameters[0].payload).toBe(
+        'decline_AB12CD'
+      );
+    } finally {
+      whatsappService.provider = originalProvider;
+      whatsappService._postMeta = originalPostMeta;
+      config.whatsapp.meta.token = originalToken;
+      config.whatsapp.meta.phoneNumberId = originalPhoneId;
+      config.whatsapp.meta.approvalTemplate = originalTemplate;
+    }
+  });
 });
 
 // ─── Delivery OTP verification + handoff ─────────────────────────────────────

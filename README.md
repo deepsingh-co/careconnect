@@ -143,10 +143,13 @@ action that rotates and copies the rider handoff URL.
   `POST /api/approvals/:id/handoff`.
 
 **Production note:** Meta Cloud API only allows free-form interactive buttons
-inside an open 24-hour customer-service window. Outside that window a
-business-initiated approval template must be approved in Meta Business Manager;
-Baileys sends buttons without template approval. Twilio falls back to text
-commands automatically.
+inside an open 24-hour customer-service window. Child approval prompts therefore
+use the approved Utility template `careconnect_approval_request` (configure it
+with `META_WHATSAPP_APPROVAL_TEMPLATE`; exact template body and JSON payload are
+in [`WHATSAPP_SETUP.md`](WHATSAPP_SETUP.md#meta-utility-template-for-child-approval)).
+If the template is not configured, CareConnect falls back to interactive buttons
+and then text commands. Baileys sends buttons without template approval; Twilio
+falls back to text commands automatically.
 
 ## Security Features
 
