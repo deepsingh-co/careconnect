@@ -23,6 +23,7 @@ const notificationRoutes = require('./routes/notifications');
 const wellnessRoutes = require('./routes/wellness');
 const simulatorRoutes = require('./routes/simulator');
 const approvalRoutes = require('./routes/approvals');
+const deliveryRoutes = require('./routes/delivery');
 
 const app = express();
 
@@ -84,6 +85,7 @@ app.use('/api/notifications', notificationRoutes);
 app.use('/api/wellness', wellnessRoutes);
 app.use('/api/simulator', simulatorRoutes);
 app.use('/api/approvals', approvalRoutes);
+app.use('/api/delivery', deliveryRoutes);
 
 // ── Not found ─────────────────────────────────────────────────────────────────
 app.use((req, res) => {

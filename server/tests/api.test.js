@@ -36,6 +36,7 @@ const ServiceProvider = require('../src/models/ServiceProvider');
 const ServiceBooking = require('../src/models/ServiceBooking');
 const Notification = require('../src/models/Notification');
 const ApprovalRequest = require('../src/models/ApprovalRequest');
+const FoodOrder = require('../src/models/FoodOrder');
 const OtpVerification = require('../src/models/OtpVerification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
 const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
@@ -1105,6 +1106,251 @@ describe('Family Approvals', () => {
     expect(payload.type).toBe('interactive');
     expect(payload.interactive.action.buttons[0].reply.id).toBe('approve_ABC123');
     expect(payload.interactive.action.buttons[1].reply.title).toBe('Decline');
+  });
+});
+
+// ─── Delivery OTP verification + handoff ─────────────────────────────────────
+describe('Delivery OTP verification + handoff', () => {
+  const deliveryParentPhone = '+919999999995';
+  let outsiderToken;
+
+  beforeAll(async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      name: 'Delivery Parent',
+      email: 'delivery.parent@test.local',
+      password: 'TestPass123',
+      role: 'parent',
+      phone: deliveryParentPhone,
+    });
+    expect(reg.status).toBe(201);
+    await FamilyLink.create({
+      parent: reg.body.data.user._id,
+      child: childId,
+      status: 'active',
+      consentGivenAt: new Date(),
+    });
+
+    const outsider = await request(app).post('/api/auth/register').send({
+      name: 'Delivery Outsider',
+      email: 'delivery.outsider@test.local',
+      password: 'TestPass123',
+      role: 'child',
+      phone: '+919999999996',
+    });
+    expect(outsider.status).toBe(201);
+    outsiderToken = outsider.body.data.token;
+  });
+
+  const deliveryParent = () => User.findOne({ email: 'delivery.parent@test.local' });
+
+  /** Approve a food request and read the OTP from the parent's WhatsApp copy. */
+  async function approvedFoodDelivery() {
+    const parent = await deliveryParent();
+    const { approval } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'food',
+      summary: 'Food: Poha',
+      amount: 80,
+      details: {
+        items: [{ itemId: 'poha', name: 'Poha', quantity: 1, unitPrice: 80 }],
+      },
+    });
+
+    const capture = whatsappService.startCapture();
+    let res;
+    try {
+      res = await request(app)
+        .post(`/api/approvals/${approval._id}/respond`)
+        .set('Authorization', `Bearer ${childToken}`)
+        .send({ action: 'approve' });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.handoffUrl).toBeTruthy();
+
+    const parentMsg = capture.find(
+      (item) => item.to === deliveryParentPhone && item.text.includes('Delivery OTP:')
+    );
+    expect(parentMsg).toBeTruthy();
+    const otp = parentMsg.text.match(/Delivery OTP: (\d{4})/)[1];
+
+    return {
+      approval: res.body.data.approval,
+      handoffUrl: res.body.data.handoffUrl,
+      token: res.body.data.handoffUrl.split('/delivery/')[1],
+      otp,
+      parent,
+    };
+  }
+
+  test('Approving a food order issues a secure handoff link', async () => {
+    const { handoffUrl, token } = await approvedFoodDelivery();
+    expect(handoffUrl).toMatch(/\/delivery\/[A-Za-z0-9_-]{20,}/);
+
+    const res = await request(app).get(`/api/delivery/handoff/${token}`);
+    expect(res.status).toBe(200);
+    expect(res.body.data.handoff.summary).toBe('Food: Poha');
+    expect(res.body.data.handoff.parent.name).toBe('Delivery Parent');
+    expect(res.body.data.handoff.parent.phone).toBe(deliveryParentPhone);
+    expect(res.body.data.handoff.order.items[0].name).toBe('Poha');
+    expect(res.body.data.handoff.verified).toBe(false);
+    expect(res.body.data.handoff.deliveryOtpHash).toBeUndefined();
+    expect(JSON.stringify(res.body)).not.toContain('handoffTokenHash');
+  });
+
+  test('An invalid handoff token returns 404', async () => {
+    const res = await request(app).get('/api/delivery/handoff/not-a-real-token-value-1234567890');
+    expect(res.status).toBe(404);
+  });
+
+  test('Wrong OTP is rejected; the correct OTP completes the delivery', async () => {
+    const { approval, token, otp, parent } = await approvedFoodDelivery();
+
+    const wrong = await request(app)
+      .post(`/api/delivery/handoff/${token}/verify`)
+      .send({ otp: '0000' });
+    expect(wrong.status).toBe(400);
+    expect(wrong.body.message).toMatch(/Incorrect OTP/);
+
+    const afterWrong = await request(app).get(`/api/delivery/handoff/${token}`);
+    expect(afterWrong.status).toBe(200);
+    expect(afterWrong.body.data.handoff.attemptsRemaining).toBe(
+      config.delivery.otpMaxAttempts - 1
+    );
+
+    const ok = await request(app)
+      .post(`/api/delivery/handoff/${token}/verify`)
+      .send({ otp });
+    expect(ok.status).toBe(200);
+    expect(ok.body.data.verification.verified).toBe(true);
+    expect(ok.body.data.verification.alreadyVerified).toBe(false);
+
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.deliveryVerifiedAt).toBeTruthy();
+    expect(stored.deliveryOtpHash).toBeUndefined();
+
+    const order = await FoodOrder.findById(approval.resultId);
+    expect(order.status).toBe('delivered');
+    expect(order.deliveredAt).toBeTruthy();
+
+    const notification = await Notification.findOne({
+      recipient: parent._id,
+      type: 'approval_delivered',
+      'data.approvalId': stored._id,
+    });
+    expect(notification).toBeTruthy();
+
+    // Reopening / re-submitting after verification is safe and idempotent.
+    const again = await request(app)
+      .post(`/api/delivery/handoff/${token}/verify`)
+      .send({ otp });
+    expect(again.status).toBe(200);
+    expect(again.body.data.verification.alreadyVerified).toBe(true);
+
+    const view = await request(app).get(`/api/delivery/handoff/${token}`);
+    expect(view.body.data.handoff.verified).toBe(true);
+  });
+
+  test('Five wrong attempts lock the OTP temporarily', async () => {
+    const { approval, token, otp } = await approvedFoodDelivery();
+
+    for (let attempt = 1; attempt <= config.delivery.otpMaxAttempts; attempt += 1) {
+      const res = await request(app)
+        .post(`/api/delivery/handoff/${token}/verify`)
+        .send({ otp: '0000' });
+      if (attempt < config.delivery.otpMaxAttempts) {
+        expect(res.status).toBe(400);
+      } else {
+        expect(res.status).toBe(429);
+        expect(res.body.message).toMatch(/Too many incorrect attempts/);
+      }
+    }
+
+    // Even the correct OTP is refused while the lock is active.
+    const blocked = await request(app)
+      .post(`/api/delivery/handoff/${token}/verify`)
+      .send({ otp });
+    expect(blocked.status).toBe(429);
+
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.deliveryOtpLockedUntil).toBeTruthy();
+    expect(stored.deliveryOtpLockedUntil.getTime()).toBeGreaterThan(Date.now());
+    expect(stored.deliveryVerifiedAt).toBeUndefined();
+  });
+
+  test('An expired handoff link is rejected', async () => {
+    const { approval, token, otp } = await approvedFoodDelivery();
+
+    await ApprovalRequest.updateOne(
+      { _id: approval._id },
+      { $set: { handoffTokenExpiresAt: new Date(Date.now() - 1000) } }
+    );
+
+    const view = await request(app).get(`/api/delivery/handoff/${token}`);
+    expect(view.status).toBe(410);
+
+    const verify = await request(app)
+      .post(`/api/delivery/handoff/${token}/verify`)
+      .send({ otp });
+    expect(verify.status).toBe(410);
+
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.deliveryVerifiedAt).toBeUndefined();
+  });
+
+  test('Only a linked family member can rotate the handoff link', async () => {
+    const { approval, token } = await approvedFoodDelivery();
+
+    const outsider = await request(app)
+      .post(`/api/approvals/${approval._id}/handoff`)
+      .set('Authorization', `Bearer ${outsiderToken}`)
+      .send({});
+    expect(outsider.status).toBe(403);
+
+    const fresh = await request(app)
+      .post(`/api/approvals/${approval._id}/handoff`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({});
+    expect(fresh.status).toBe(200);
+    expect(fresh.body.data.handoffUrl).toMatch(/\/delivery\//);
+    expect(fresh.body.data.handoffUrl).not.toContain(token);
+
+    // The old token is invalidated when a fresh link is issued.
+    const oldView = await request(app).get(`/api/delivery/handoff/${token}`);
+    expect(oldView.status).toBe(404);
+
+    const newToken = fresh.body.data.handoffUrl.split('/delivery/')[1];
+    const newView = await request(app).get(`/api/delivery/handoff/${newToken}`);
+    expect(newView.status).toBe(200);
+  });
+
+  test('Grocery approvals do not create a delivery OTP or handoff', async () => {
+    const parent = await deliveryParent();
+    const { approval } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'grocery',
+      summary: 'Daily items: Milk',
+      details: { items: ['Milk'] },
+    });
+
+    const res = await request(app)
+      .post(`/api/approvals/${approval._id}/respond`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ action: 'approve' });
+    expect(res.status).toBe(200);
+    expect(res.body.data.handoffUrl).toBeNull();
+
+    const handoff = await request(app)
+      .post(`/api/approvals/${approval._id}/handoff`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({});
+    expect(handoff.status).toBe(409);
+
+    const stored = await ApprovalRequest.findById(approval._id);
+    expect(stored.deliveryOtpHash).toBeUndefined();
+    expect(stored.handoffTokenHash).toBeUndefined();
   });
 });
 

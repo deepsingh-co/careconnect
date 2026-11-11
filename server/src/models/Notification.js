@@ -28,6 +28,7 @@ const notificationSchema = new mongoose.Schema(
         'approval_approved',
         'approval_declined',
         'approval_expired',
+        'approval_delivered',
         'system',
       ],
       required: true,

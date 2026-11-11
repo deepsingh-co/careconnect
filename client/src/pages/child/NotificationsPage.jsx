@@ -21,6 +21,7 @@ const typeColors = {
   approval_approved: 'bg-emerald-50 border-emerald-200',
   approval_declined: 'bg-rose-50 border-rose-200',
   approval_expired: 'bg-gray-50 border-gray-200',
+  approval_delivered: 'bg-emerald-50 border-emerald-200',
   system: 'bg-gray-50 border-gray-200',
 };
 

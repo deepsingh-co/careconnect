@@ -79,6 +79,16 @@ const config = {
     max: parseInt(process.env.RATE_LIMIT_MAX, 10) || 100,
   },
 
+  delivery: {
+    // How long a delivery-partner handoff link stays valid after approval.
+    handoffExpiresHours: Math.max(1, parseInt(process.env.DELIVERY_HANDOFF_EXPIRES_HOURS, 10) || 24),
+    // How long the delivery OTP itself stays valid.
+    otpTtlHours: Math.max(1, parseInt(process.env.DELIVERY_OTP_TTL_HOURS, 10) || 24),
+    // Wrong-OTP allowance per delivery before a temporary lock.
+    otpMaxAttempts: Math.max(1, parseInt(process.env.DELIVERY_OTP_MAX_ATTEMPTS, 10) || 5),
+    otpLockMinutes: Math.max(1, parseInt(process.env.DELIVERY_OTP_LOCK_MINUTES, 10) || 15),
+  },
+
   isDev() {
     return this.env === 'development';
   },

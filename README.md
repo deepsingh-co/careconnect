@@ -117,13 +117,30 @@ intent, then asks a linked child to approve before anything is placed:
    come from an active `FamilyLink`.
 4. **Approve** → CareConnect places the order/booking, then sends the parent the
    delivery partner's name, phone, ETA and a 4-digit delivery OTP on WhatsApp.
+   A secure delivery-partner handoff link is issued too; the rider opens it,
+   enters the OTP at handover, and the order is marked complete on verification.
    Grocery and medicine approvals send provider hand-off links instead of an OTP.
 5. **Decline** → no order is placed; the parent is told that their family will
    help. Requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
 
 Children can also approve from the dashboard at `/approvals` (a fallback when
 WhatsApp buttons are unavailable). Text replies `APPROVE <code>` and
-`DECLINE <code>` always work.
+`DECLINE <code>` always work. Approved requests expose a **Get delivery link**
+action that rotates and copies the rider handoff URL.
+
+### Delivery OTP verification
+
+- Handoff URL: `/delivery/<token>` (mobile page, no login for the rider).
+- Token: 32 random bytes, stored only as a SHA-256 hash; 24-hour expiry.
+- OTP: 4 digits, stored only as a SHA-256 hash; 24-hour expiry.
+- Wrong OTP: 5 attempts, then a 15-minute lock (configurable).
+- On success the linked `FoodOrder` / `RideRequest` / `ServiceBooking` becomes
+  `delivered` / `completed`, the family gets an in-app notification and the
+  parent gets a WhatsApp confirmation.
+- Public API: `GET /api/delivery/handoff/:token` and
+  `POST /api/delivery/handoff/:token/verify` with `{ "otp": "1234" }`.
+  Authenticated family members can rotate the link with
+  `POST /api/approvals/:id/handoff`.
 
 **Production note:** Meta Cloud API only allows free-form interactive buttons
 inside an open 24-hour customer-service window. Outside that window a

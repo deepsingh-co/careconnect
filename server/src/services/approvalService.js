@@ -15,6 +15,7 @@
  */
 const crypto = require('crypto');
 const mongoose = require('mongoose');
+const config = require('../config');
 const ApprovalRequest = require('../models/ApprovalRequest');
 const FamilyLink = require('../models/FamilyLink');
 const Notification = require('../models/Notification');
@@ -25,10 +26,11 @@ const AuditLog = require('../models/AuditLog');
 const { foodProviders, rideProviders, homeServiceProviders } = require('./integrationAdapters');
 const { quickCommerceHandoffs, medicineHandoffs } = require('./handoffLinks');
 const whatsappService = require('./whatsappService');
+const deliveryService = require('./deliveryService');
 
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const APPROVAL_TTL_MINUTES = Math.max(1, parseInt(process.env.APPROVAL_EXPIRES_MINUTES, 10) || 15);
-const OTP_TTL_HOURS = 24;
+const OTP_TTL_HOURS = config.delivery.otpTtlHours;
 
 const TYPE_LABELS = {
   food: 'Food order',
@@ -397,6 +399,7 @@ async function fulfillApproval(approval, responder) {
       resultType: 'FoodOrder',
       resultId: order._id,
       resultRef: placement.ref,
+      isDemo: placement.isDemo !== false,
       partner: {
         role: 'Delivery partner',
         name: placement.riderName,
@@ -441,6 +444,7 @@ async function fulfillApproval(approval, responder) {
       resultType: 'RideRequest',
       resultId: ride._id,
       resultRef: booking.ref,
+      isDemo: booking.isDemo !== false,
       partner: {
         role: 'Driver',
         name: booking.driverName,
@@ -475,6 +479,7 @@ async function fulfillApproval(approval, responder) {
       resultType: 'ServiceBooking',
       resultId: booking._id,
       resultRef: uc.ref,
+      isDemo: uc.isDemo !== false,
       partner: {
         role: 'Service professional',
         name: uc.proName,
@@ -642,7 +647,11 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
     ).populate('parent', 'name phone preferredLanguage');
 
     if (!claimed) throw httpError(409, 'This request has already been handled.');
-    await notifyAfterDecision(claimed, responder, null, 'decline', reason);
+    try {
+      await notifyAfterDecision(claimed, responder, null, 'decline', reason);
+    } catch (err) {
+      console.error('[Approval] Decline notification failed:', err.message);
+    }
     return { approval: claimed, childMessage: 'Declined. Your parent has been informed.' };
   }
 
@@ -656,23 +665,9 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
 
   if (!claimed) throw httpError(409, 'This request has already been handled.');
 
+  let result;
   try {
-    const result = await fulfillApproval(claimed, responder);
-
-    claimed.status = 'approved';
-    claimed.resultType = result.resultType;
-    claimed.resultId = result.resultId;
-    claimed.resultRef = result.resultRef;
-    claimed.deliveryPartner = result.partner || undefined;
-    if (result.otp) {
-      claimed.deliveryOtpHash = hashOtp(result.otp);
-      claimed.deliveryOtpExpiresAt = new Date(Date.now() + OTP_TTL_HOURS * 60 * 60 * 1000);
-    }
-    claimed.parentNotifiedAt = new Date();
-    await claimed.save();
-
-    await notifyAfterDecision(claimed, responder, result, 'approve');
-    return { approval: claimed, childMessage: result.childMessage };
+    result = await fulfillApproval(claimed, responder);
   } catch (err) {
     claimed.status = 'failed';
     await claimed.save();
@@ -689,6 +684,48 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
     });
     throw err;
   }
+
+  claimed.status = 'approved';
+  claimed.resultType = result.resultType;
+  claimed.resultId = result.resultId;
+  claimed.resultRef = result.resultRef;
+  claimed.deliveryPartner = result.partner || undefined;
+  if (result.otp) {
+    claimed.deliveryOtpHash = hashOtp(result.otp);
+    claimed.deliveryOtpExpiresAt = new Date(Date.now() + OTP_TTL_HOURS * 60 * 60 * 1000);
+  }
+  claimed.parentNotifiedAt = new Date();
+  await claimed.save();
+
+  // The order is already placed — a handoff-link failure must not flip the
+  // approval to "failed". The family can always rotate a fresh link later.
+  let handoff = null;
+  if (result.otp) {
+    try {
+      handoff = await deliveryService.createHandoffToken(claimed);
+      const partnerLabel = result.partner?.role || 'delivery partner';
+      result.childMessage =
+        `${result.childMessage}\n\nDelivery verification link (share with the ${partnerLabel} if needed):\n${handoff.url}`;
+      if (!result.isDemo) {
+        await deliveryService.notifyRider(claimed, handoff.url);
+      }
+    } catch (err) {
+      console.error('[Approval] Delivery handoff link could not be created:', err.message);
+    }
+  }
+
+  try {
+    await notifyAfterDecision(claimed, responder, result, 'approve');
+  } catch (err) {
+    // Notifications are best effort; the order itself is already placed.
+    console.error('[Approval] Post-approval notification failed:', err.message);
+  }
+
+  return {
+    approval: claimed,
+    childMessage: result.childMessage,
+    handoffUrl: handoff?.url || null,
+  };
 }
 
 async function expireOne(approval) {
@@ -740,7 +777,11 @@ function approvalFilterForUser(user) {
 function toSafeApproval(doc) {
   const obj = doc.toObject ? doc.toObject() : { ...doc };
   delete obj.deliveryOtpHash;
-  delete obj.deliveryOtpExpiresAt;
+  delete obj.handoffTokenHash;
+  if (obj.handoffTokenExpiresAt) {
+    obj.handoffExpiresAt = obj.handoffTokenExpiresAt;
+  }
+  delete obj.handoffTokenExpiresAt;
   return obj;
 }
 

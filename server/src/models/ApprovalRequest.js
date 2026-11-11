@@ -80,6 +80,17 @@ const approvalRequestSchema = new mongoose.Schema(
     /** Delivery OTP is only ever stored as a hash. The parent gets the code. */
     deliveryOtpHash: String,
     deliveryOtpExpiresAt: Date,
+    deliveryOtpAttempts: { type: Number, default: 0 },
+    deliveryOtpLockedUntil: Date,
+    /** Set once the delivery partner verifies the OTP at handover. */
+    deliveryVerifiedAt: Date,
+    /**
+     * Delivery-partner handoff link. Only the SHA-256 hash of the token is
+     * stored; the raw link is returned once when it is issued.
+     */
+    handoffTokenHash: { type: String, index: true },
+    handoffTokenExpiresAt: Date,
+    handoffOpenedAt: Date,
     parentNotifiedAt: Date,
   },
   { timestamps: true }

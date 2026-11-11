@@ -173,7 +173,39 @@ see all. The delivery OTP is never returned — only its hash is stored.
 
 Only an active linked child can respond. The first response wins; a second
 response returns `409`. Approving places the order and sends the parent the
-delivery partner details + delivery OTP on WhatsApp.
+delivery partner details + delivery OTP on WhatsApp. The response also contains
+`handoffUrl` (returned once) for the delivery partner.
+
+### POST /api/approvals/:id/handoff
+
+Rotate and return a fresh delivery-partner handoff link:
+`{ "handoffUrl": "https://.../delivery/<token>", "expiresAt": "..." }`.
+Available to the parent, an actively linked child, or an admin. Only for
+approved requests that have a delivery OTP (food, ride, home service).
+
+---
+
+## Delivery Handoff (public)
+
+The handoff token is the credential. Only its SHA-256 hash is stored, and the
+public routes are rate-limited.
+
+### GET /api/delivery/handoff/:token
+
+Returns the job sheet for the delivery partner: parent name/phone, order summary,
+items/route, assigned partner, OTP expiry, verification state. Does not expose
+the OTP hash or handoff-token hash.
+
+### POST /api/delivery/handoff/:token/verify
+**Body:** `{ "otp": "1234" }`
+
+- Wrong OTP → `400` with remaining attempts; 5 wrong attempts → `429` + 15-min lock.
+- Correct OTP → marks `deliveryVerifiedAt`, burns the OTP hash, completes the
+  linked `FoodOrder` (`delivered`) / `RideRequest` (`completed`) /
+  `ServiceBooking` (`completed`), notifies the family and returns
+  `{ "verified": true }`.
+- Re-verifying the same delivery is idempotent (`alreadyVerified: true`).
+- Invalid token → `404`; expired link/OTP → `410`; unapproved request → `409`.
 
 ---
 

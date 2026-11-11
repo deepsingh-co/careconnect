@@ -7,6 +7,7 @@ import LandingPage from './pages/public/LandingPage';
 import AboutPage from './pages/public/AboutPage';
 import ContactPage from './pages/public/ContactPage';
 import PrivacyPolicyPage from './pages/public/PrivacyPolicyPage';
+import DeliveryHandoffPage from './pages/public/DeliveryHandoffPage';
 import LoginPage from './pages/auth/LoginPage';
 import RegisterPage from './pages/auth/RegisterPage';
 
@@ -60,6 +61,7 @@ export default function App() {
           <Route path="/about" element={<AboutPage />} />
           <Route path="/contact" element={<ContactPage />} />
           <Route path="/privacy" element={<PrivacyPolicyPage />} />
+          <Route path="/delivery/:token" element={<DeliveryHandoffPage />} />
           <Route path="/auth/login" element={<LoginPage />} />
           <Route path="/auth/register" element={<RegisterPage />} />
 

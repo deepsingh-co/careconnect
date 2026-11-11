@@ -1,4 +1,5 @@
 const approvalService = require('../services/approvalService');
+const deliveryService = require('../services/deliveryService');
 
 exports.list = async (req, res, next) => {
   try {
@@ -39,8 +40,18 @@ exports.respond = async (req, res, next) => {
     const approval = await approvalService.getApproval(req.user, req.params.id);
     res.json({
       success: true,
-      data: { approval, message: result.childMessage },
+      data: { approval, message: result.childMessage, handoffUrl: result.handoffUrl || null },
     });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/** Rotate and return a fresh delivery-partner handoff link. */
+exports.createHandoff = async (req, res, next) => {
+  try {
+    const handoff = await deliveryService.issueHandoffLink(req.user, req.params.id);
+    res.json({ success: true, data: handoff });
   } catch (err) {
     next(err);
   }

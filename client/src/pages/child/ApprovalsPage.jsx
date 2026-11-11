@@ -13,6 +13,10 @@ import {
   Check,
   X,
   Clock,
+  Link2,
+  Copy,
+  ExternalLink,
+  CheckCircle2,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -50,6 +54,8 @@ export default function ApprovalsPage() {
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
   const [filter, setFilter] = useState('pending');
+  const [handoffById, setHandoffById] = useState({});
+  const [handoffBusyId, setHandoffBusyId] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -75,11 +81,15 @@ export default function ApprovalsPage() {
     setBusyId(approval._id);
     try {
       const res = await api.post(`/approvals/${approval._id}/respond`, { action });
+      const handoffUrl = res.data.data.handoffUrl;
       toast.success(
         action === 'approve'
           ? 'Approved — the order is placed and your parent has been notified.'
           : 'Declined — your parent has been informed.'
       );
+      if (handoffUrl) {
+        setHandoffById((prev) => ({ ...prev, [approval._id]: handoffUrl }));
+      }
       setApprovals((prev) =>
         action === 'approve'
           ? prev.map((item) => (item._id === approval._id ? res.data.data.approval : item))
@@ -91,6 +101,38 @@ export default function ApprovalsPage() {
     } finally {
       setBusyId(null);
     }
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch {
+      window.prompt('Copy this delivery link', text);
+      return false;
+    }
+  }
+
+  async function createHandoff(approval) {
+    setHandoffBusyId(approval._id);
+    try {
+      const res = await api.post(`/approvals/${approval._id}/handoff`);
+      const url = res.data.data.handoffUrl;
+      setHandoffById((prev) => ({ ...prev, [approval._id]: url }));
+      await copyText(url);
+      toast.success('Delivery link copied — share it with the delivery partner.');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not create a delivery link');
+    } finally {
+      setHandoffBusyId(null);
+    }
+  }
+
+  async function copyHandoff(approval) {
+    const url = handoffById[approval._id];
+    if (!url) return;
+    await copyText(url);
+    toast.success('Delivery link copied');
   }
 
   const canDecide = user?.role === 'child';
@@ -185,6 +227,64 @@ export default function ApprovalsPage() {
                           {approval.deliveryPartner.etaMinutes ? ` · ETA ${approval.deliveryPartner.etaMinutes} min` : ''}
                           {approval.resultRef ? ` · Ref ${approval.resultRef}` : ''}
                         </p>
+
+                        {approval.deliveryVerifiedAt ? (
+                          <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
+                            <CheckCircle2 size={14} aria-hidden="true" />
+                            Delivery verified {new Date(approval.deliveryVerifiedAt).toLocaleString('en-IN')}
+                          </p>
+                        ) : (
+                          ['food', 'ride', 'home_service'].includes(approval.type) && (
+                            <div className="mt-3 border-t border-emerald-100 pt-3">
+                              {handoffById[approval._id] ? (
+                                <>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <Button size="sm" variant="secondary" onClick={() => copyHandoff(approval)}>
+                                      <Copy size={15} className="mr-1.5" aria-hidden="true" /> Copy link
+                                    </Button>
+                                    <a
+                                      href={handoffById[approval._id]}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex min-h-9 items-center rounded-xl border border-care-200 bg-white px-3 py-2 text-sm font-semibold text-care-800 transition-colors hover:bg-care-50"
+                                    >
+                                      <ExternalLink size={15} className="mr-1.5" aria-hidden="true" /> Open page
+                                    </a>
+                                    <a
+                                      href={`https://wa.me/?text=${encodeURIComponent(
+                                        `CareConnect delivery handoff: ${handoffById[approval._id]}`
+                                      )}`}
+                                      target="_blank"
+                                      rel="noreferrer"
+                                      className="inline-flex min-h-9 items-center rounded-xl border border-care-200 bg-white px-3 py-2 text-sm font-semibold text-care-800 transition-colors hover:bg-care-50"
+                                    >
+                                      Share on WhatsApp
+                                    </a>
+                                  </div>
+                                  <p className="mt-2 break-all text-[11px] text-emerald-700/80">
+                                    {handoffById[approval._id]}
+                                  </p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-xs text-emerald-700">
+                                    Share a secure handoff link so the delivery partner can see the job and
+                                    enter the OTP at handover.
+                                  </p>
+                                  <Button
+                                    size="sm"
+                                    variant="secondary"
+                                    className="mt-2"
+                                    loading={handoffBusyId === approval._id}
+                                    onClick={() => createHandoff(approval)}
+                                  >
+                                    <Link2 size={15} className="mr-1.5" aria-hidden="true" /> Get delivery link
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          )
+                        )}
                       </div>
                     )}
 

@@ -97,8 +97,11 @@ variants (khaana/khana, cheeni/chini, sabjee/sabji, dawai/dawa).
 4. **Approve** → the order/booking is placed, then the parent receives the
    delivery partner's name, phone, ETA and a 4-digit delivery OTP on WhatsApp.
    Grocery/medicine approvals send provider hand-off links instead of an OTP.
-5. **Decline** → nothing is ordered; the parent is told the family will help.
-6. Unanswered requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
+5. The child can copy a **delivery partner handoff link** from Dashboard →
+   Approvals (or it is sent automatically to a real rider phone). The rider
+   opens the link, sees the job and enters the parent's OTP at handover.
+6. **Decline** → nothing is ordered; the parent is told the family will help.
+7. Unanswered requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
    Children can also approve from **Dashboard → Approvals**.
 
 ### Production notes
@@ -241,7 +244,11 @@ TWILIO_WHATSAPP_FROM=+14155238886
 | `META_WHATSAPP_OTP_TEMPLATE_LANG` | `en_US` | template language code |
 | `META_WHATSAPP_OTP_TEMPLATE_BUTTON` | `true` | if template has copy-code button |
 | `APPROVAL_EXPIRES_MINUTES` | `15` | how long a child has to approve a parent request |
-| `CLIENT_URL` | `https://...` | CORS origin for the web app |
+| `DELIVERY_HANDOFF_EXPIRES_HOURS` | `24` | validity of the rider handoff link |
+| `DELIVERY_OTP_TTL_HOURS` | `24` | validity of the 4-digit delivery OTP |
+| `DELIVERY_OTP_MAX_ATTEMPTS` | `5` | wrong OTP attempts before a lock |
+| `DELIVERY_OTP_LOCK_MINUTES` | `15` | lock duration after too many wrong attempts |
+| `CLIENT_URL` | `https://...` | CORS origin for the web app (also used to build handoff links) |
 | `VITE_API_URL` | `https://.../api` | build-time var for the client |
 
 ---
