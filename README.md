@@ -147,6 +147,8 @@ inside an open 24-hour customer-service window. Child approval prompts therefore
 use the approved Utility template `careconnect_approval_request` (configure it
 with `META_WHATSAPP_APPROVAL_TEMPLATE`; exact template body and JSON payload are
 in [`WHATSAPP_SETUP.md`](WHATSAPP_SETUP.md#meta-utility-template-for-child-approval)).
+After adding a valid `META_WHATSAPP_TOKEN`, run `cd server && npm run meta:template`
+to submit the template automatically.
 If the template is not configured, CareConnect falls back to interactive buttons
 and then text commands. Baileys sends buttons without template approval; Twilio
 falls back to text commands automatically.

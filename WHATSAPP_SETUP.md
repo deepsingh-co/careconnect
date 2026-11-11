@@ -207,7 +207,27 @@ children who already have an open 24-hour window.
 
 ## Option B — Meta WhatsApp Cloud API (official)
 
-### 1. Create the app and get credentials
+### 1. Create the Meta Business account and WhatsApp Business Account
+
+Only the business owner can do this (login, phone verification and business
+documents). The developer test number works without business verification, but
+a real number and higher limits need it.
+
+1. Go to https://business.facebook.com/overview → **Create account**. Enter the
+   business name, your name and a business email, then confirm the email.
+2. **Business Settings → Accounts → WhatsApp Accounts → Add → Create a new
+   WhatsApp Business Account**. Pick the business name and timezone.
+3. Add a phone number: a new number that is **not** on WhatsApp, or migrate an
+   existing one (delete it from the WhatsApp app first). Verify by SMS/voice.
+   The display name goes through Meta review.
+4. For production, complete **Business Settings → Security Center → Start
+   verification** (GST / incorporation certificate / utility bill). This raises
+   messaging limits and unlocks a permanent setup.
+5. Keep these two IDs ready:
+   - **WABA ID** (WhatsApp Business Account ID) → `META_WHATSAPP_BUSINESS_ACCOUNT_ID`
+   - **Phone number ID** (the long numeric ID, not the phone number) → `META_WHATSAPP_PHONE_NUMBER_ID`
+
+### 2. Create the app and get credentials
 
 1. Go to https://developers.facebook.com → **My Apps → Create App** → type **Business**.
 2. Add the **WhatsApp** product. You get a free **test number** — you can message up to 5 verified recipients without any business verification.
@@ -215,9 +235,15 @@ children who already have an open 24-hour window.
    - **Phone number ID** → `META_WHATSAPP_PHONE_NUMBER_ID`
    - **Temporary access token** → `META_WHATSAPP_TOKEN` (expires in 24h — use for testing only)
 4. From **App Settings → Basic** copy the **App Secret** → `META_WHATSAPP_APP_SECRET` (used to verify incoming webhook signatures).
-5. For production, generate a **permanent token**: https://business.facebook.com → Settings → **System Users** → new system user → assign the app + WhatsApp asset → generate token with `whatsapp_business_messaging` permission.
+5. For production, generate a **permanent token**: https://business.facebook.com →
+   **Business Settings → Users → System users → Add**, assign the app + WhatsApp
+   account, then **Generate token** with both permissions:
+   - `whatsapp_business_messaging` (send messages)
+   - `whatsapp_business_management` (create/read templates — needed by the setup script)
+6. Copy the **WABA ID** from **Business Settings → Accounts → WhatsApp Accounts**
+   (or from the WhatsApp Manager URL) → `META_WHATSAPP_BUSINESS_ACCOUNT_ID`.
 
-### 2. Deploy the backend with a public HTTPS URL (required)
+### 3. Deploy the backend with a public HTTPS URL (required)
 
 Meta needs to reach your webhook. Deploy with the included Render blueprint (see "Deploy" below), then check:
 
@@ -225,7 +251,7 @@ Meta needs to reach your webhook. Deploy with the included Render blueprint (see
 https://<your-api-domain>/api/health   →  { "success": true, ... }
 ```
 
-### 3. Configure the webhook
+### 4. Configure the webhook
 
 Meta App → **WhatsApp → Configuration → Webhook → Edit**:
 
@@ -234,7 +260,39 @@ Meta App → **WhatsApp → Configuration → Webhook → Edit**:
 - Click Verify and Save (the server answers the Meta challenge automatically)
 - Under **Webhook fields**, subscribe to **messages**
 
-### 4. Create the OTP template (required for real OTPs)
+### 5. Create the approval Utility template (required for child prompts)
+
+Children usually have no open 24-hour window, so this template is mandatory on
+Meta. You can submit it automatically:
+
+```env
+# server/.env — never commit this file
+META_WHATSAPP_TOKEN=EAAG...
+META_WHATSAPP_BUSINESS_ACCOUNT_ID=123456789012345  # optional if the token manages one WABA
+META_WHATSAPP_APPROVAL_TEMPLATE=careconnect_approval_request
+META_WHATSAPP_APPROVAL_TEMPLATE_LANG=en_US
+```
+
+```bash
+cd server
+npm run meta:template
+```
+
+The script checks whether the template already exists; if not, it submits the
+exact Utility body, five variables and the **Approve / Decline** quick-reply
+buttons. It prints `PENDING`, `APPROVED` or `REJECTED`. Meta reviews the
+template (usually minutes, up to 24h) — track it in **WhatsApp Manager → Account
+tools → Message templates**. If Meta rejects it, fix the body per its note and
+resubmit.
+
+The manual template body/buttons and the exact runtime payload are documented in
+[Meta Utility template for child approval](#meta-utility-template-for-child-approval)
+above.
+
+After approval, set `META_WHATSAPP_APPROVAL_TEMPLATE` and
+`META_WHATSAPP_APPROVAL_TEMPLATE_LANG` on the server/Render and redeploy.
+
+### 6. Create the OTP template (required for real OTPs)
 
 WhatsApp only allows **pre-approved templates** for business-initiated messages like OTPs. Freeform text is allowed only within 24 hours after the user messaged you.
 
@@ -247,20 +305,23 @@ WhatsApp only allows **pre-approved templates** for business-initiated messages 
 7. If your approved template includes the copy-code button → set `META_WHATSAPP_OTP_TEMPLATE_BUTTON=true`
 8. Wait for approval (usually minutes for authentication templates)
 
-### 5. Environment variables
+### 7. Environment variables
 
 ```env
 WHATSAPP_PROVIDER=meta
 META_WHATSAPP_TOKEN=EAAG...            # permanent system-user token in production
 META_WHATSAPP_PHONE_NUMBER_ID=123456789012345
+META_WHATSAPP_BUSINESS_ACCOUNT_ID=123456789012345
 META_WHATSAPP_WEBHOOK_VERIFY_TOKEN=<random long string>
 META_WHATSAPP_APP_SECRET=<app secret>
+META_WHATSAPP_APPROVAL_TEMPLATE=careconnect_approval_request
+META_WHATSAPP_APPROVAL_TEMPLATE_LANG=en_US
 META_WHATSAPP_OTP_TEMPLATE=otp_verification
 META_WHATSAPP_OTP_TEMPLATE_LANG=en_US
 META_WHATSAPP_OTP_TEMPLATE_BUTTON=true
 ```
 
-### 6. End-to-end test checklist
+### 8. End-to-end test checklist
 
 - [ ] `GET /api/health` OK on the public URL
 - [ ] Meta webhook shows **Verified** and `messages` subscribed
@@ -275,7 +336,7 @@ META_WHATSAPP_OTP_TEMPLATE_BUTTON=true
 - Complete **Business Verification** and add a payment method (WhatsApp pricing is per conversation; service conversations have a free monthly tier).
 - Replace the temporary token with a permanent system-user token.
 - Note the **24-hour customer service window**: freeform replies (the bot chat, confirmations) only work within 24h of the user's last message — which is fine for a chat bot. Reminders sent later may need an approved **Utility** template; the scheduler marks failed deliveries in the DB and keeps running.
-- **Family approval prompts** are also business-initiated messages to the child. Outside the child's 24h window, Meta requires an approved **Utility** template (body variables for parent name, request summary and code). Baileys needs no template; Twilio falls back to text automatically. Approve/Decline text commands remain valid on every channel.
+- **Family approval prompts** are also business-initiated messages to the child. Outside the child's 24h window, Meta requires an approved **Utility** template (body variables for parent name, request summary and code). Create it with `npm run meta:template`; Baileys needs no template; Twilio falls back to text automatically. Approve/Decline text commands remain valid on every channel.
 
 ---
 
@@ -325,7 +386,9 @@ TWILIO_WHATSAPP_FROM=+14155238886
 | `WHATSAPP_PROVIDER` | `baileys` (recommended), `meta`, `twilio` | empty = no provider configured (dev/test simulation only; production is live-only) |
 | `BAILEYS_AUTH_DIR` | `./.baileys-auth` | WhatsApp Web session folder (created after the QR scan) |
 | `META_WHATSAPP_TOKEN` | `EAAG...` | permanent system-user token |
-| `META_WHATSAPP_PHONE_NUMBER_ID` | `123456789012345` | API Setup |
+| `META_WHATSAPP_PHONE_NUMBER_ID` | `123456789012345` | API Setup (numeric ID, not the phone number) |
+| `META_WHATSAPP_BUSINESS_ACCOUNT_ID` | `123456789012345` | WABA ID, used by `npm run meta:template` |
+| `META_GRAPH_VERSION` | `v23.0` | Graph API version used by the template setup script |
 | `META_WHATSAPP_WEBHOOK_VERIFY_TOKEN` | random string | same value in Meta webhook config |
 | `META_WHATSAPP_APP_SECRET` | app secret | webhook signature verification |
 | `META_WHATSAPP_OTP_TEMPLATE` | `otp_verification` | approved auth template name |
