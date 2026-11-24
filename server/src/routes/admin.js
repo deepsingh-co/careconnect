@@ -18,6 +18,7 @@ router.get('/orders', adminController.getOrders);
 router.get('/integrations', adminController.getIntegrationStatus);
 router.get('/whatsapp/channel', adminController.getWhatsappChannel);
 router.post('/whatsapp/channel/restart', adminController.restartWhatsappChannel);
+router.post('/whatsapp/channel/disconnect', adminController.disconnectWhatsappChannel);
 router.post('/whatsapp/channel/send', adminController.sendWhatsappTest);
 router.get('/audit-logs', adminController.getAuditLogs);
 

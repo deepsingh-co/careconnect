@@ -268,8 +268,12 @@ async function connect() {
           if (code === DisconnectReason.loggedOut) {
             state.phone = null;
             state.since = null;
-            state.lastError = 'Logged out of WhatsApp — scan the QR code again (Admin → Integrations).';
+            state.lastError = 'Logged out of WhatsApp — re-link from Admin → WhatsApp.';
             console.warn('[Baileys] Logged out. Scan the QR code again to re-link.');
+            // The saved credentials are dead once WhatsApp logs the device out.
+            // Drop them so the status honestly reads "awaiting setup" and the
+            // next connect() starts from a clean QR instead of a broken session.
+            clearSessionFiles();
             return;
           }
 
@@ -308,6 +312,15 @@ async function connect() {
   return getStatus();
 }
 
+/** Remove the saved WhatsApp Web credentials so the next connect() starts clean. */
+function clearSessionFiles() {
+  try {
+    fs.rmSync(config.whatsapp.baileys.authDir, { recursive: true, force: true });
+  } catch (err) {
+    console.error('[Baileys] Could not clear the saved session:', err.message);
+  }
+}
+
 /** Drop the current session and pair again (fresh QR). */
 async function restart() {
   if (config.whatsapp.provider !== 'baileys') {
@@ -331,15 +344,62 @@ async function restart() {
     /* socket already gone */
   }
 
+  // "Re-link" must always produce a scannable QR. Keeping the old creds would
+  // silently reconnect with a stale/broken session instead of pairing again.
+  clearSessionFiles();
+
   await new Promise((resolve) => setTimeout(resolve, 300));
   return connect();
+}
+
+/**
+ * Unlink the current WhatsApp Web session (admin "Disconnect" action).
+ * Logs the device out and removes the saved credentials so the next connect()
+ * starts with a fresh QR code.
+ */
+async function logout() {
+  if (config.whatsapp.provider !== 'baileys') {
+    const error = new Error('WhatsApp provider is not baileys — nothing to disconnect.');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (reconnectTimer) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  const old = sock;
+  sock = null;
+
+  if (old) {
+    try {
+      await old.logout();
+    } catch {
+      try {
+        old.end(undefined);
+      } catch {
+        /* socket already gone */
+      }
+    }
+  }
+
+  clearSessionFiles();
+
+  state.state = 'disconnected';
+  state.qr = null;
+  state.phone = null;
+  state.since = null;
+  state.lastError = null;
+  console.log('[Baileys] Session unlinked by admin. Scan a fresh QR to reconnect.');
+  return getStatus();
 }
 
 /** Send a freeform text message through the linked WhatsApp number. */
 async function sendText(to, text) {
   if (state.state !== 'open' || !sock) {
     const error = new Error(
-      'WhatsApp number is not linked yet. Scan the QR code in Admin → Integrations, then retry.'
+      'WhatsApp number is not linked yet. Scan the QR code in Admin → WhatsApp, then retry.'
     );
     error.statusCode = 503;
     throw error;
@@ -368,7 +428,7 @@ async function sendText(to, text) {
 async function sendButtons(to, { text, buttons = [], footer = null } = {}) {
   if (state.state !== 'open' || !sock) {
     const error = new Error(
-      'WhatsApp number is not linked yet. Scan the QR code in Admin → Integrations, then retry.'
+      'WhatsApp number is not linked yet. Scan the QR code in Admin → WhatsApp, then retry.'
     );
     error.statusCode = 503;
     throw error;
@@ -403,6 +463,7 @@ async function sendButtons(to, { text, buttons = [], footer = null } = {}) {
 module.exports = {
   connect,
   restart,
+  logout,
   sendText,
   sendButtons,
   getStatus,

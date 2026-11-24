@@ -1917,6 +1917,36 @@ describe('WhatsApp · Baileys channel & production live-only', () => {
     expect(res.body.message).toMatch(/required/i);
   });
 
+  test('Disconnect endpoint unlinks the Baileys session', async () => {
+    const spy = jest.spyOn(baileysService, 'logout').mockResolvedValueOnce({
+      provider: 'baileys',
+      state: 'disconnected',
+      qr: null,
+      phone: null,
+      sessionExists: false,
+    });
+
+    const res = await request(app)
+      .post('/api/admin/whatsapp/channel/disconnect')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(200);
+    expect(res.body.data.state).toBe('disconnected');
+    expect(res.body.data.sessionExists).toBe(false);
+    expect(spy).toHaveBeenCalledTimes(1);
+  });
+
+  test('Disconnect fails cleanly when the provider is not Baileys', async () => {
+    whatsappService.provider = 'demo';
+
+    const res = await request(app)
+      .post('/api/admin/whatsapp/channel/disconnect')
+      .set('Authorization', `Bearer ${adminToken}`);
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/not baileys/i);
+  });
+
   test('Non-admins cannot touch the WhatsApp channel', async () => {
     const res = await request(app)
       .get('/api/admin/whatsapp/channel')

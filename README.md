@@ -153,6 +153,26 @@ If the template is not configured, CareConnect falls back to interactive buttons
 and then text commands. Baileys sends buttons without template approval; Twilio
 falls back to text commands automatically.
 
+## Admin Console
+
+- `/admin` — platform stats, live integration health and shortcuts.
+- `/admin/whatsapp` — dedicated WhatsApp console: link state, QR pairing,
+  re-link, disconnect, test send, demo checklist and copy-ready parent messages.
+- `/admin/integrations` — full integration matrix (database, AI, maps, email,
+  providers) with setup hints.
+- `/admin/users`, `/admin/providers`, `/admin/audit` — user management, provider
+  verification and the audit trail. WhatsApp restart/disconnect/test-send
+  actions are written to the audit log.
+
+### Demo runbook (WhatsApp)
+
+1. Open **Admin → WhatsApp** and confirm the provider is `baileys`.
+2. Scan the QR with a **dedicated** number (never a personal number).
+3. Send a test message from the page.
+4. From the parent phone send `khana chahiye` / `ride chahiye`.
+5. Approve as the linked child on WhatsApp; show the delivery OTP and the
+   rider handoff page.
+
 ## Security Features
 
 - Bcrypt password hashing (10+ rounds)

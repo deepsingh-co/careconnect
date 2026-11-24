@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { Card, Badge, Skeleton, Alert } from '../../components/ui';
 import api from '../../services/api';
-import { Settings, Database, MessageCircle, Brain, MapPin, Car, UtensilsCrossed, Home, Mail } from 'lucide-react';
+import { Settings, Database, MessageCircle, Brain, MapPin, Car, UtensilsCrossed, Home, Mail, ArrowRight } from 'lucide-react';
 
 const integrationMeta = {
   database: { icon: Database, label: 'Database' },
@@ -177,6 +178,13 @@ export default function AdminIntegrationsPage() {
                           ? 'Naya QR generate karein'
                           : 'Re-link / naya QR'}
                     </button>
+
+                    <Link
+                      to="/admin/whatsapp"
+                      className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-care-700 hover:text-care-900"
+                    >
+                      Open WhatsApp dashboard <ArrowRight size={13} aria-hidden="true" />
+                    </Link>
                   </div>
                 )}
 

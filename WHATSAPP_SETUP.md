@@ -42,8 +42,8 @@ stored in `server/.baileys-auth/` (gitignored) and survive restarts.
 ### 2. Start the server and scan the QR
 
 1. Start the backend (`npm run dev` in `careconnect/server`).
-2. Log in to the app as **admin** → **Admin → Integrations**.
-3. The WhatsApp card shows a **QR code** (it refreshes automatically).
+2. Log in to the app as **admin** → **Admin → WhatsApp** (also linked from Integrations).
+3. The page shows a **QR code** (it refreshes automatically).
 4. On the dedicated phone: WhatsApp → **Linked devices** → **Link a device** →
    scan the QR. The card flips to `Linked: +91…` within a few seconds.
 
@@ -198,8 +198,8 @@ children who already have an open 24-hour window.
   are never surfaced.
 - There is no demo/live toggle — a number is either linked (live) or awaiting
   setup (QR scan / missing env vars).
-- Lost session? The admin Integrations page shows the error and a
-  **Re-link / naya QR** button to pair again.
+- Lost session? The admin **WhatsApp** page shows the error with
+  **Re-link / naya QR** and **Disconnect** actions to pair again.
 - Reminders/notifications that parents did not trigger are the risky category
   for unofficial APIs — keep them low-frequency, or move them to email/in-app.
 
@@ -410,7 +410,7 @@ TWILIO_WHATSAPP_FROM=+14155238886
 
 | Symptom | Fix |
 |---------|-----|
-| QR never appears on the Integrations page | Provider not set to `baileys`, or server logs show a Baileys start error — check the API logs |
+| QR never appears on the WhatsApp page | Provider not set to `baileys`, or server logs show a Baileys start error — check the API logs |
 | QR shows but scan says "phone not connected" | The QR expired — wait for the auto-refresh or click **Naya QR generate karein** |
 | Linked number goes offline after restart | Session files missing (`.baileys-auth/` not on the deployed disk) — scan the QR again; use a persistent disk in production |
 | Bot stops replying | Number likely banned/restricted by WhatsApp (see ban-safety rules above) — re-link a fresh dedicated number |

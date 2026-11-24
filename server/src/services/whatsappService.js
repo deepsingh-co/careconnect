@@ -46,7 +46,7 @@ class WhatsappService {
     if (this.provider === 'baileys') {
       // No .env credentials — the channel is authorised by scanning a QR code
       // (Admin → Integrations). The session persists in server/.baileys-auth/.
-      return baileysService.hasSession() ? [] : ['WHATSAPP_SESSION (scan the QR in Admin → Integrations)'];
+      return baileysService.hasSession() ? [] : ['WHATSAPP_SESSION (scan the QR in Admin → WhatsApp)'];
     }
 
     return [`WHATSAPP_PROVIDER (unsupported value: ${this.provider})`];

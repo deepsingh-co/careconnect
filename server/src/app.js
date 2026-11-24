@@ -119,7 +119,7 @@ const start = async () => {
           `[Server] WhatsApp (Baileys): ${s.state}` +
             (s.state === 'open'
               ? ` as ${s.phone || 'unknown number'}`
-              : ' — scan the QR in Admin → Integrations to link a number')
+              : ' - scan the QR in Admin → WhatsApp to link a number')
         );
       })
       .catch((err) => console.error('[Server] WhatsApp (Baileys) failed to start:', err.message));

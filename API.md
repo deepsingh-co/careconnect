@@ -268,6 +268,14 @@ All admin endpoints require `admin` role.
 **Body:** `{ "decision": "approved|rejected", "notes": "..." }`
 ### GET /api/admin/stats
 ### GET /api/admin/integrations
+### GET /api/admin/whatsapp/channel
+Returns the live Baileys link state: `state` (`disabled|disconnected|connecting|qr|open`), `qr` data-URL, linked `phone`, `since`, `lastError`, `sessionExists`.
+### POST /api/admin/whatsapp/channel/restart
+Drops the socket and generates a fresh QR for pairing.
+### POST /api/admin/whatsapp/channel/disconnect
+Logs the linked device out and deletes the saved Baileys session. Returns `400` when the provider is not `baileys`.
+### POST /api/admin/whatsapp/channel/send
+**Body:** `{ "to": "+919876543210", "text": "..." }` — real send test through the active provider (simulated when no number is linked).
 ### GET /api/admin/audit-logs
 
 ---

@@ -30,6 +30,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import AdminUsersPage from './pages/admin/AdminUsersPage';
 import AdminProvidersPage from './pages/admin/AdminProvidersPage';
 import AdminIntegrationsPage from './pages/admin/AdminIntegrationsPage';
+import AdminWhatsAppPage from './pages/admin/AdminWhatsAppPage';
 import AdminAuditPage from './pages/admin/AdminAuditPage';
 
 // Role-aware dashboard redirect
@@ -87,6 +88,7 @@ export default function App() {
           <Route path="/admin/users" element={<ProtectedRoute roles={['admin']}><AdminUsersPage /></ProtectedRoute>} />
           <Route path="/admin/providers" element={<ProtectedRoute roles={['admin']}><AdminProvidersPage /></ProtectedRoute>} />
           <Route path="/admin/integrations" element={<ProtectedRoute roles={['admin']}><AdminIntegrationsPage /></ProtectedRoute>} />
+          <Route path="/admin/whatsapp" element={<ProtectedRoute roles={['admin']}><AdminWhatsAppPage /></ProtectedRoute>} />
           <Route path="/admin/audit" element={<ProtectedRoute roles={['admin']}><AdminAuditPage /></ProtectedRoute>} />
 
           <Route path="*" element={<Navigate to="/" replace />} />

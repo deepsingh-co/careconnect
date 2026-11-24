@@ -305,6 +305,28 @@ exports.restartWhatsappChannel = async (req, res, next) => {
 };
 
 /**
+ * POST /api/admin/whatsapp/channel/disconnect
+ * Unlinks the current WhatsApp Web device and removes the saved session.
+ */
+exports.disconnectWhatsappChannel = async (req, res, next) => {
+  try {
+    const status = await baileysService.logout();
+
+    AuditLog.create({
+      actor: req.user._id,
+      actorRole: 'admin',
+      action: 'admin.whatsapp.channel.disconnect',
+      resource: 'WhatsApp',
+      details: { state: status.state },
+    }).catch(() => {});
+
+    res.json({ success: true, data: status });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
  * POST /api/admin/whatsapp/channel/send  { to, text }
  * Real end-to-end send test through the current mode/provider.
  */
@@ -317,6 +339,15 @@ exports.sendWhatsappTest = async (req, res, next) => {
     }
 
     const result = await whatsappService.sendMessage(to, text);
+
+    AuditLog.create({
+      actor: req.user._id,
+      actorRole: 'admin',
+      action: 'admin.whatsapp.test_send',
+      resource: 'WhatsApp',
+      details: { to, demo: Boolean(result.demo), provider: result.provider || null },
+    }).catch(() => {});
+
     res.json({
       success: true,
       data: result,

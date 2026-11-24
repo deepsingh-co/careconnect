@@ -5,6 +5,7 @@ import Logo from '../components/Logo';
 import {
   Bell, Menu, X, LayoutDashboard, Pill, Briefcase, Car, UtensilsCrossed,
   Users, HeartPulse, Shield, Settings, LogOut, ChevronRight, ShieldCheck,
+  MessageCircle,
 } from 'lucide-react';
 
 const navByRole = {
@@ -58,6 +59,7 @@ const navByRole = {
     {
       heading: 'System',
       items: [
+        { to: '/admin/whatsapp', label: 'WhatsApp', icon: MessageCircle },
         { to: '/admin/integrations', label: 'Integrations', icon: Settings },
         { to: '/admin/audit', label: 'Audit Log', icon: Shield },
       ],

@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import DashboardLayout from '../../layouts/DashboardLayout';
 import { Card, Badge, StatCard, Skeleton, Alert } from '../../components/ui';
 import api from '../../services/api';
-import { Users, Briefcase, AlertTriangle, Activity, Settings, Shield, ArrowRight, ArrowUpRight } from 'lucide-react';
+import { Users, Briefcase, AlertTriangle, Activity, Settings, Shield, ArrowRight, ArrowUpRight, MessageCircle } from 'lucide-react';
 
 const integrationLabels = {
   database: 'Database',
@@ -19,7 +19,8 @@ const integrationLabels = {
 const quickLinks = [
   { icon: Users, label: 'Manage users', description: 'Accounts, roles and access', to: '/admin/users', tint: 'bg-care-50 text-care-700' },
   { icon: Briefcase, label: 'Provider reviews', description: 'Verify new service providers', to: '/admin/providers', tint: 'bg-amber-50 text-amber-700' },
-  { icon: Settings, label: 'Integrations', description: 'WhatsApp, AI, maps and email', to: '/admin/integrations', tint: 'bg-emerald-50 text-emerald-700' },
+  { icon: MessageCircle, label: 'WhatsApp connection', description: 'Link the number, scan QR, run a demo', to: '/admin/whatsapp', tint: 'bg-emerald-50 text-emerald-700' },
+  { icon: Settings, label: 'Integrations', description: 'AI, maps and email settings', to: '/admin/integrations', tint: 'bg-sky-50 text-sky-700' },
   { icon: Shield, label: 'Audit log', description: 'Trace sensitive operations', to: '/admin/audit', tint: 'bg-violet-50 text-violet-700' },
 ];
 
@@ -45,7 +46,7 @@ export default function AdminDashboard() {
 
   const statusColor = (status) => {
     if (['connected', 'configured'].includes(status)) return 'success';
-    if (['demo_mode', 'fallback_mode', 'manual_fulfillment', 'demo_catalogue', 'demo_data', 'simulated'].includes(status)) return 'warning';
+    if (['awaiting_setup', 'demo_mode', 'fallback_mode', 'manual_fulfillment', 'demo_catalogue', 'demo_data', 'simulated'].includes(status)) return 'warning';
     return 'danger';
   };
 
@@ -111,7 +112,7 @@ export default function AdminDashboard() {
 
       <section className="mt-5 sm:mt-6" aria-labelledby="admin-shortcuts">
         <h2 id="admin-shortcuts" className="sr-only">Admin shortcuts</h2>
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
           {quickLinks.map((link) => (
             <Link
               key={link.label}
