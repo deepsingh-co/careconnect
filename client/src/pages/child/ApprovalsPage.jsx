@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
-import { Card, Button, Badge, EmptyState, Skeleton, Alert } from '../../components/ui';
+import { Card, Button, Badge, EmptyState, Skeleton, Alert, Toggle } from '../../components/ui';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
 import {
@@ -17,6 +17,9 @@ import {
   Copy,
   ExternalLink,
   CheckCircle2,
+  Sparkles,
+  Store,
+  ArrowUpRight,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
@@ -27,6 +30,16 @@ const typeMeta = {
   grocery: { label: 'Daily items', icon: ShoppingBasket, tone: 'bg-emerald-50 text-emerald-700' },
   medicine: { label: 'Medicines', icon: Pill, tone: 'bg-rose-50 text-rose-700' },
 };
+
+// Grocery first: daily items are the category that is ON by default.
+const autoApproveTypes = [
+  { type: 'grocery', label: 'Daily items' },
+  { type: 'food', label: 'Food' },
+  { type: 'ride', label: 'Ride' },
+  { type: 'home_service', label: 'Home service' },
+  { type: 'medicine', label: 'Medicines' },
+];
+
 
 const statusMeta = {
   pending: { variant: 'warning', label: 'Pending' },
@@ -56,6 +69,8 @@ export default function ApprovalsPage() {
   const [filter, setFilter] = useState('pending');
   const [handoffById, setHandoffById] = useState({});
   const [handoffBusyId, setHandoffBusyId] = useState(null);
+  const [links, setLinks] = useState([]);
+  const [autoBusyKey, setAutoBusyKey] = useState(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -70,9 +85,44 @@ export default function ApprovalsPage() {
     }
   }, [filter]);
 
+  const loadFamily = useCallback(async () => {
+    if (user?.role !== 'child') return;
+    try {
+      const res = await api.get('/family');
+      setLinks((res.data.data.links || []).filter((link) => link.status === 'active'));
+    } catch {
+      // Auto-approve settings are optional; approvals still work without them.
+    }
+  }, [user?.role]);
+
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    loadFamily();
+  }, [loadFamily]);
+
+  async function setAutoApprove(link, type, enabled) {
+    const key = `${link._id}:${type}`;
+    setAutoBusyKey(key);
+    try {
+      const res = await api.patch(`/family/links/${link._id}/auto-approve`, { type, enabled });
+      const updated = res.data.data.link;
+      setLinks((prev) =>
+        prev.map((item) =>
+          item._id === updated._id ? { ...item, autoApprove: updated.autoApprove } : item
+        )
+      );
+      const label = autoApproveTypes.find((item) => item.type === type)?.label || type;
+      toast.success(`${label} auto-approve ${enabled ? 'ON' : 'OFF'}`);
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Could not update auto-approve');
+    } finally {
+      setAutoBusyKey(null);
+    }
+  }
+
 
   async function respond(approval, action) {
     const verb = action === 'approve' ? 'approve' : 'decline';
@@ -145,7 +195,63 @@ export default function ApprovalsPage() {
       <Alert type="info" className="mb-5">
         Approving places the order and sends your parent the delivery partner's name, phone, ETA and
         the delivery OTP on WhatsApp. Requests expire automatically, so act while they are pending.
+        Daily items are compared across Blinkit, Zepto and Instamart, and the cheapest option is
+        picked automatically when your auto-approve toggle is ON.
       </Alert>
+
+      {canDecide && links.length > 0 && (
+        <Card className="mb-5 p-4 sm:p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-care-50 text-care-700">
+              <Sparkles size={19} aria-hidden="true" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-care-950">Auto-approve per category</p>
+              <p className="mt-0.5 text-sm text-care-600">
+                ON means your parent's request is approved instantly — no waiting for you. Daily items
+                are ON by default; the rest stay OFF until you enable them. You can change this any time.
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-4 space-y-3">
+            {links.map((link) => (
+              <div key={link._id} className="rounded-xl border border-care-100 bg-care-50/40 p-3">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                  <p className="text-sm font-semibold text-care-900">
+                    {link.parent?.name || 'Parent'}
+                  </p>
+                  {link.parent?.phone && (
+                    <span className="text-xs text-care-500">{link.parent.phone}</span>
+                  )}
+                  <span className="ml-auto text-[11px] font-medium uppercase tracking-wide text-care-400">
+                    Applies to this parent only
+                  </span>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                  {autoApproveTypes.map(({ type, label }) => {
+                    const key = `${link._id}:${type}`;
+                    return (
+                      <div
+                        key={type}
+                        className="flex items-center justify-between gap-2 rounded-lg bg-white px-3 py-2 shadow-sm"
+                      >
+                        <span className="text-xs font-semibold text-care-700">{label}</span>
+                        <Toggle
+                          checked={Boolean(link.autoApprove?.[type])}
+                          disabled={autoBusyKey === key}
+                          onChange={(value) => setAutoApprove(link, type, value)}
+                          aria-label={`Auto-approve ${label} for ${link.parent?.name || 'parent'}`}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <button
@@ -186,6 +292,8 @@ export default function ApprovalsPage() {
             const amount = formatAmount(approval.amount);
             const left = minutesLeft(approval.expiresAt);
             const isPending = approval.status === 'pending';
+            const comparison = approval.priceComparison;
+            const cheapestId = comparison?.cheapest?.providerId;
 
             return (
               <Card key={approval._id} className="p-4 sm:p-5">
@@ -198,6 +306,7 @@ export default function ApprovalsPage() {
                     <div className="flex flex-wrap items-center gap-2">
                       <p className="font-semibold capitalize text-care-950">{meta.label}</p>
                       <Badge variant={status.variant}>{status.label}</Badge>
+                      {approval.autoApproved && <Badge variant="info">Auto-approved</Badge>}
                       <span className="rounded-md bg-care-50 px-2 py-0.5 font-mono text-xs font-bold tracking-wider text-care-700">
                         {approval.code}
                       </span>
@@ -205,6 +314,65 @@ export default function ApprovalsPage() {
                     </div>
 
                     <p className="mt-1 text-sm text-care-700">{approval.summary}</p>
+
+                    {comparison && (
+                      <div className="mt-3 rounded-xl border border-care-100 bg-care-50/50 p-3">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-care-950">
+                            <Store size={15} aria-hidden="true" /> Price comparison
+                          </p>
+                          {comparison.isEstimate && <Badge variant="neutral">Demo estimate</Badge>}
+                          {comparison.savingsVsHighest > 0 && (
+                            <span className="ml-auto text-xs font-medium text-emerald-700">
+                              Save ₹{Number(comparison.savingsVsHighest).toLocaleString('en-IN')} vs the
+                              costliest app
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="mt-2 space-y-1.5">
+                          {(comparison.options || []).map((option) => {
+                            const isCheapest = option.providerId === cheapestId;
+                            return (
+                              <div
+                                key={option.providerId}
+                                className={`flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2 ${
+                                  isCheapest
+                                    ? 'border-emerald-200 bg-white shadow-sm'
+                                    : 'border-transparent bg-white/60'
+                                }`}
+                              >
+                                <span className="text-sm font-semibold text-care-900">
+                                  {option.providerName}
+                                </span>
+                                {isCheapest && <Badge variant="success">Cheapest</Badge>}
+                                <span className="text-xs text-care-500">
+                                  {option.etaMinutes} min · delivery ₹{option.deliveryFee}
+                                </span>
+                                <span className="ml-auto text-sm font-bold text-care-950">
+                                  ₹{Number(option.total).toLocaleString('en-IN')}
+                                </span>
+                                {option.orderUrl && (
+                                  <a
+                                    href={option.orderUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1 rounded-lg border border-care-200 bg-white px-2 py-1 text-xs font-semibold text-care-700 transition-colors hover:bg-care-50"
+                                  >
+                                    Open <ArrowUpRight size={13} aria-hidden="true" />
+                                  </a>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+
+                        <p className="mt-2 text-[11px] text-care-500">
+                          {comparison.note ||
+                            'Prices are demo estimates — the provider app shows the final bill at checkout.'}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-care-500">
                       {approval.parent?.name && <span>Parent: {approval.parent.name}</span>}

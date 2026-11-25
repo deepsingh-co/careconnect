@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import DashboardLayout from '../../layouts/DashboardLayout';
-import { Card, Badge, EmptyState, Skeleton, Button } from '../../components/ui';
+import { EmptyState, Skeleton, Button } from '../../components/ui';
+import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
-import { Bell, Check, CheckCheck } from 'lucide-react';
+import { Bell, Check, CheckCheck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const typeColors = {
@@ -26,10 +27,12 @@ const typeColors = {
 };
 
 export default function NotificationsPage() {
+  const { user } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('all');
+  const [busyId, setBusyId] = useState(null);
 
   useEffect(() => { load(); }, [filter]);
 
@@ -60,6 +63,64 @@ export default function NotificationsPage() {
       toast.success('All notifications marked as read');
     } catch { toast.error('Failed to mark all as read'); }
   }
+
+  // Approve/decline straight from the notification so the child never has to
+  // open the approvals page for a routine request.
+  async function respond(notification, action) {
+    const approvalId = notification.data?.approvalId;
+    if (!approvalId) return;
+    setBusyId(notification._id);
+    try {
+      const res = await api.post(`/approvals/${approvalId}/respond`, { action });
+      const handoffUrl = res.data.data.handoffUrl;
+      toast.success(
+        action === 'approve'
+          ? `Approved — your parent has been notified.${handoffUrl ? ' Delivery link is on the approvals page.' : ''}`
+          : 'Declined — your parent has been informed.'
+      );
+      setNotifications(prev =>
+        prev.map(n =>
+          n._id === notification._id
+            ? {
+                ...n,
+                isRead: true,
+                data: { ...n.data, handled: true, handledAction: action },
+              }
+            : n
+        )
+      );
+      if (!notification.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
+    } catch (err) {
+      const status = err.response?.status;
+      toast.error(err.response?.data?.message || 'Could not update this request');
+      // Already handled by another family member, expired, or no longer linked:
+      // hide the stale buttons so the list stays truthful.
+      if ([403, 404, 409, 410].includes(status)) {
+        setNotifications(prev =>
+          prev.map(n =>
+            n._id === notification._id
+              ? {
+                  ...n,
+                  isRead: true,
+                  data: { ...n.data, handled: true, handledAction: 'closed' },
+                }
+              : n
+          )
+        );
+        if (!notification.isRead) setUnreadCount(prev => Math.max(0, prev - 1));
+      }
+    } finally {
+      setBusyId(null);
+    }
+  }
+
+  const handledLabel = {
+    approve: 'Approved',
+    decline: 'Declined',
+    expired: 'Expired',
+    failed: 'Could not be completed',
+    closed: 'Already handled',
+  };
 
   return (
     <DashboardLayout title="Notifications">
@@ -103,6 +164,37 @@ export default function NotificationsPage() {
                     {!n.isRead && <div className="w-2 h-2 bg-care-500 rounded-full" />}
                   </div>
                   <p className="text-sm text-gray-500 mt-0.5">{n.body}</p>
+
+                  {user?.role === 'child' &&
+                    n.type === 'approval_request' &&
+                    n.data?.approvalId &&
+                    !n.data?.handled && (
+                      <div className="mt-3 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
+                        <Button
+                          size="sm"
+                          variant="success"
+                          loading={busyId === n._id}
+                          onClick={() => respond(n, 'approve')}
+                        >
+                          <Check size={15} className="mr-1" aria-hidden="true" /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={busyId === n._id}
+                          onClick={() => respond(n, 'decline')}
+                        >
+                          <X size={15} className="mr-1" aria-hidden="true" /> Decline
+                        </Button>
+                      </div>
+                    )}
+
+                  {n.type === 'approval_request' && n.data?.handled && (
+                    <p className="mt-2 text-xs font-medium text-gray-500">
+                      {handledLabel[n.data.handledAction] || 'Handled'}
+                    </p>
+                  )}
+
                   <p className="text-xs text-gray-400 mt-1">{new Date(n.createdAt).toLocaleString('en-IN')}</p>
                 </div>
               </div>
