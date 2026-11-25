@@ -107,26 +107,50 @@ All demo/simulated features are clearly labelled in the UI and API responses.
 ## Family Approval Automation
 
 Parent requests are no longer ordered blindly. The WhatsApp pipeline parses the
-intent, then asks a linked child to approve before anything is placed:
+intent, then either auto-approves (when the child enabled that category) or asks
+a linked child to approve before anything is placed:
 
 1. Parent sends a request on WhatsApp (food, ride, home service, daily items or
    medicines).
 2. CareConnect creates an `ApprovalRequest` and sends the child an Approve /
-   Decline prompt on WhatsApp, plus an in-app notification.
-3. The first child response wins (atomic `pending → processing` claim) and must
-   come from an active `FamilyLink`.
-4. **Approve** → CareConnect places the order/booking, then sends the parent the
+   Decline prompt on WhatsApp, plus an in-app notification with the same buttons.
+3. **Auto-approve** — if an actively linked child has that category switched ON,
+   the request is approved immediately (atomic claim) and the child is told it
+   needed no action. This applies per parent *and* per category.
+   - Daily items (`grocery`) default to **ON**; food, ride, home service and
+     medicine default to **OFF**.
+   - Children change their own settings at `/approvals` (or
+     `PATCH /api/family/links/:linkId/auto-approve`). Parents cannot opt a child
+     into spending approvals. `manageBookings: false` disables auto-approval.
+   - Only the first child with the category ON is used; the audit trail records
+     `approval.auto_approved`.
+4. Otherwise the first child response wins (atomic `pending → processing` claim)
+   and must come from an active `FamilyLink`.
+5. **Approve** → CareConnect places the order/booking, then sends the parent the
    delivery partner's name, phone, ETA and a 4-digit delivery OTP on WhatsApp.
    A secure delivery-partner handoff link is issued too; the rider opens it,
    enters the OTP at handover, and the order is marked complete on verification.
    Grocery and medicine approvals send provider hand-off links instead of an OTP.
-5. **Decline** → no order is placed; the parent is told that their family will
+6. **Decline** → no order is placed; the parent is told that their family will
    help. Requests expire after `APPROVAL_EXPIRES_MINUTES` (default 15).
 
-Children can also approve from the dashboard at `/approvals` (a fallback when
-WhatsApp buttons are unavailable). Text replies `APPROVE <code>` and
-`DECLINE <code>` always work. Approved requests expose a **Get delivery link**
-action that rotates and copies the rider handoff URL.
+Children can also approve from `/approvals` or straight from the **Approve /
+Decline** buttons on an in-app notification. Notifications are marked handled as
+soon as any linked child decides, so stale buttons disappear everywhere. Text
+replies `APPROVE <code>` and `DECLINE <code>` always work. Approved requests
+expose a **Get delivery link** action that rotates and copies the rider handoff
+URL.
+
+### Daily items: cheapest quick-commerce option
+
+Blinkit, Zepto and Swiggy Instamart do not publish public consumer cart APIs.
+CareConnect therefore compares clearly-labelled **deterministic demo estimates**
+(stable prices, delivery + handling fees, ETA), picks the lowest total, and sends
+the parent the cheapest provider's prefilled search page plus the other options.
+The `priceComparison` object stored on the approval (and shown in the UI) carries
+`isEstimate: true`; the provider app always shows the real bill at checkout.
+Auto-approved daily items use the same comparison. No automatic payment or
+provider-side order is claimed.
 
 ### Delivery OTP verification
 

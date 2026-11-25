@@ -52,7 +52,16 @@ Register a new user.
 ## Family
 
 ### GET /api/family
-Returns family links for the authenticated user.
+Returns family links for the authenticated user. Every link includes
+`autoApprove` with all five categories; legacy links are backfilled with the
+defaults (`grocery: true`, everything else `false`).
+
+### PATCH /api/family/links/:linkId/auto-approve
+**Body:** `{ "type": "food|ride|home_service|grocery|medicine", "enabled": true }`
+
+Child-only. Lets the linked child switch auto-approval for one category on that
+parent's link. Parents receive `403`; unrelated children get `404`. The change is
+written to the audit log as `family.auto_approve_updated`.
 
 ### POST /api/family/invitations
 Creates an invitation code (parent only).
@@ -159,12 +168,35 @@ Returns demo food catalogue.
 
 ## Family Approvals
 
-WhatsApp requests from a parent are placed only after a linked child approves.
+WhatsApp requests from a parent are placed only after approval. A category that
+the linked child has switched to **auto-approve** skips the wait: the request is
+approved immediately and the child is notified that no action was needed. Daily
+items default to auto-approve ON; all other categories default OFF.
 
 ### GET /api/approvals?status=pending&limit=50
 
 Parents see their own requests, children see requests for linked parents, admins
-see all. The delivery OTP is never returned — only its hash is stored.
+see all. The delivery OTP is never returned — only its hash is stored. Approval
+objects include `autoApproved` and, for daily items, a `priceComparison` object:
+
+```json
+{
+  "isEstimate": true,
+  "items": ["Milk", "Poha"],
+  "cheapest": { "providerId": "instamart", "providerName": "Swiggy Instamart", "total": 137, "orderUrl": "..." },
+  "savingsVsHighest": 18,
+  "options": [
+    { "providerId": "instamart", "total": 137, "deliveryFee": 15, "etaMinutes": 15, "orderUrl": "..." },
+    { "providerId": "zepto", "total": 146, "deliveryFee": 20, "etaMinutes": 12, "orderUrl": "..." },
+    { "providerId": "blinkit", "total": 155, "deliveryFee": 25, "etaMinutes": 10, "orderUrl": "..." }
+  ],
+  "note": "Estimated demo prices..."
+}
+```
+
+`isEstimate` is always `true`: Blinkit/Zepto/Instamart have no public consumer
+price API, so these are deterministic demo estimates and the provider app shows
+the final bill at checkout.
 
 ### GET /api/approvals/:id
 
@@ -174,7 +206,10 @@ see all. The delivery OTP is never returned — only its hash is stored.
 Only an active linked child can respond. The first response wins; a second
 response returns `409`. Approving places the order and sends the parent the
 delivery partner details + delivery OTP on WhatsApp. The response also contains
-`handoffUrl` (returned once) for the delivery partner.
+`handoffUrl` (returned once) for the delivery partner. Any matching
+`approval_request` in-app notification is marked read and tagged
+`data.handled: true` with `data.handledAction`, which hides its inline
+Approve/Decline buttons.
 
 ### POST /api/approvals/:id/handoff
 
