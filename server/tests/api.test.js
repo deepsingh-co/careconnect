@@ -40,6 +40,7 @@ const FoodOrder = require('../src/models/FoodOrder');
 const OtpVerification = require('../src/models/OtpVerification');
 const { rideProviders, foodProviders, homeServiceProviders } = require('../src/services/integrationAdapters');
 const { rideHandoffs, rideHandoffFor, foodHandoffs, mapsDirectionsUrl } = require('../src/services/handoffLinks');
+const { compareQuickCommercePrices } = require('../src/services/quickCommercePricing');
 const whatsappService = require('../src/services/whatsappService');
 const approvalService = require('../src/services/approvalService');
 const baileysService = require('../src/services/baileysService');
@@ -660,7 +661,7 @@ describe('WhatsApp Webhook', () => {
     expect(aiService.deterministicDetect('dawai ka reminder lagao').intent).toBe('medicine_reminder');
   });
 
-  test('Parent asking for daily items asks the child to approve, then sends quick-commerce links', async () => {
+  test('When grocery auto-approve is off, the child must approve before links are sent', async () => {
     // Fresh parent (own number + own session) so no leftover conversation
     // state from earlier tests can interfere.
     const reg = await request(app).post('/api/auth/register').send({
@@ -669,7 +670,13 @@ describe('WhatsApp Webhook', () => {
     expect(reg.status).toBe(201);
     const parentPhone = '+919999999993';
     const parentUserId = reg.body.data.user._id;
-    await FamilyLink.create({ parent: parentUserId, child: childId, status: 'active', consentGivenAt: new Date() });
+    await FamilyLink.create({
+      parent: parentUserId,
+      child: childId,
+      status: 'active',
+      consentGivenAt: new Date(),
+      autoApprove: { grocery: false },
+    });
 
     const capture = whatsappService.startCapture();
     let approval;
@@ -718,6 +725,72 @@ describe('WhatsApp Webhook', () => {
 
     const updated = await ApprovalRequest.findById(approval._id);
     expect(updated.status).toBe('approved');
+  });
+
+  test('Daily items auto-approve by default and pick the cheapest quick-commerce basket', async () => {
+    const reg = await request(app).post('/api/auth/register').send({
+      name: 'Grocery Auto Parent',
+      email: 'grocery.auto@test.local',
+      password: 'TestPass123',
+      role: 'parent',
+      phone: '+919999999997',
+    });
+    expect(reg.status).toBe(201);
+    const parentPhone = '+919999999997';
+    const parentUserId = reg.body.data.user._id;
+    // No autoApprove override: daily items default to ON.
+    await FamilyLink.create({
+      parent: parentUserId,
+      child: childId,
+      status: 'active',
+      consentGivenAt: new Date(),
+    });
+
+    const capture = whatsappService.startCapture();
+    try {
+      await webhookController.handleIncomingMessage({
+        from: parentPhone,
+        id: `grocery_auto_${Date.now()}`,
+        text: 'dudh aur poha chahiye',
+        type: 'text',
+      });
+    } finally {
+      whatsappService.stopCapture();
+    }
+
+    const approval = await ApprovalRequest.findOne({ parent: parentUserId, type: 'grocery' });
+    expect(approval).toBeTruthy();
+    expect(approval.status).toBe('approved');
+    expect(approval.autoApproved).toBe(true);
+    expect(approval.priceComparison?.isEstimate).toBe(true);
+    expect(approval.priceComparison.options).toHaveLength(3);
+    expect(approval.priceComparison.options.map((o) => o.providerId).sort()).toEqual([
+      'blinkit',
+      'instamart',
+      'zepto',
+    ]);
+    const totals = approval.priceComparison.options.map((o) => o.total);
+    expect(approval.priceComparison.cheapest.total).toBe(Math.min(...totals));
+    expect(approval.resultRef).toMatch(/^(BLINKIT|ZEPTO|INSTAMART)-COMPARE-/);
+
+    const finalMsg = capture.filter((c) => c.to === parentPhone).pop().text;
+    expect(finalMsg).toContain('auto-approve');
+    expect(finalMsg).toContain(approval.priceComparison.cheapest.providerName);
+    expect(finalMsg).toContain('blinkit.com/s/');
+    expect(finalMsg).toContain('zeptonow.com/search?query=');
+    expect(finalMsg).toContain('instamart');
+    expect(finalMsg).toContain('Milk');
+    expect(finalMsg).toContain('Poha');
+
+    // Auto-approved requests must not ask the child for anything.
+    expect(capture.some((c) => c.to === '+919999999991')).toBe(false);
+    const childNotice = await Notification.findOne({
+      recipient: childId,
+      type: 'approval_approved',
+      'data.approvalId': approval._id,
+    });
+    expect(childNotice).toBeTruthy();
+    expect(childNotice.data.autoApproved).toBe(true);
   });
 
   test('Parent asking for medicine asks the child to approve, then sends pharmacy links', async () => {
@@ -793,12 +866,14 @@ describe('WhatsApp Simulator', () => {
     simParentToken = res.body.data.token;
     simParentId = res.body.data.user._id;
 
-    // Approval requests need an active family link.
+    // Approval requests need an active family link. Keep grocery manual here
+    // so the approval-flow tests keep exercising the pending → approve path.
     await FamilyLink.create({
       parent: simParentId,
       child: childId,
       status: 'active',
       consentGivenAt: new Date(),
+      autoApprove: { grocery: false },
     });
   });
 
@@ -980,6 +1055,16 @@ describe('Family Approvals', () => {
     expect(res.status).toBe(200);
     expect(res.body.data.approval.status).toBe('declined');
     expect(res.body.data.approval.deliveryOtpHash).toBeUndefined();
+
+    // The in-app notification's inline buttons must not stay actionable.
+    const notice = await Notification.findOne({
+      type: 'approval_request',
+      'data.approvalId': approval._id,
+    });
+    expect(notice).toBeTruthy();
+    expect(notice.isRead).toBe(true);
+    expect(notice.data.handled).toBe(true);
+    expect(notice.data.handledAction).toBe('decline');
   });
 
   test('An unlinked child cannot approve another family\'s request', async () => {
@@ -1022,6 +1107,52 @@ describe('Family Approvals', () => {
       .set('Authorization', `Bearer ${childToken}`)
       .send({ action: 'approve' });
     expect(second.status).toBe(409);
+  });
+
+  test('A child can toggle auto-approval per category and the next request skips approval', async () => {
+    const link = await FamilyLink.findOne({ parent: parentId, child: childId, status: 'active' });
+    expect(link).toBeTruthy();
+
+    // Parents cannot opt their child into spending approvals.
+    const parentPatch = await request(app)
+      .patch(`/api/family/links/${link._id}/auto-approve`)
+      .set('Authorization', `Bearer ${parentToken}`)
+      .send({ type: 'food', enabled: true });
+    expect(parentPatch.status).toBe(403);
+
+    // Neither can an unrelated child.
+    const outsiderPatch = await request(app)
+      .patch(`/api/family/links/${link._id}/auto-approve`)
+      .set('Authorization', `Bearer ${outsiderToken}`)
+      .send({ type: 'food', enabled: true });
+    expect(outsiderPatch.status).toBe(404);
+
+    const enable = await request(app)
+      .patch(`/api/family/links/${link._id}/auto-approve`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ type: 'food', enabled: true });
+    expect(enable.status).toBe(200);
+    expect(enable.body.data.link.autoApprove.food).toBe(true);
+    expect(enable.body.data.link.autoApprove.grocery).toBe(true);
+
+    const parent = await User.findById(parentId);
+    const { approval, autoApproved } = await approvalService.createApproval({
+      parentUser: parent,
+      type: 'food',
+      summary: 'Food: Poha',
+      amount: 80,
+      details: { items: [{ itemId: 'poha', name: 'Poha', quantity: 1, unitPrice: 80 }] },
+    });
+    expect(autoApproved).toBe(true);
+    expect(approval.status).toBe('approved');
+    expect(approval.autoApproved).toBe(true);
+
+    const disable = await request(app)
+      .patch(`/api/family/links/${link._id}/auto-approve`)
+      .set('Authorization', `Bearer ${childToken}`)
+      .send({ type: 'food', enabled: false });
+    expect(disable.status).toBe(200);
+    expect(disable.body.data.link.autoApprove.food).toBe(false);
   });
 
   test('Expired requests are marked expired and the parent is notified', async () => {
@@ -1240,6 +1371,8 @@ describe('Delivery OTP verification + handoff', () => {
       child: childId,
       status: 'active',
       consentGivenAt: new Date(),
+      // Keep daily items manual here so this suite drives the child approve path.
+      autoApprove: { grocery: false },
     });
 
     const outsider = await request(app).post('/api/auth/register').send({
@@ -1639,6 +1772,25 @@ describe('Real-World Handoff Links', () => {
     expect(handoffs[0].url).toBe('https://www.swiggy.com/');
     expect(handoffs[1].url).toBe('https://www.zomato.com/');
     expect(handoffs[2].url).toContain('google.com/maps/search');
+  });
+
+  test('Quick-commerce comparison covers Blinkit, Zepto and Instamart and picks the lowest total', () => {
+    const comparison = compareQuickCommercePrices(['Milk', 'Poha']);
+    expect(comparison.isEstimate).toBe(true);
+    expect(comparison.items).toEqual(['Milk', 'Poha']);
+    expect(comparison.options.map((o) => o.providerId).sort()).toEqual([
+      'blinkit',
+      'instamart',
+      'zepto',
+    ]);
+    const totals = comparison.options.map((o) => o.total).sort((a, b) => a - b);
+    expect(comparison.cheapest.total).toBe(totals[0]);
+    expect(comparison.cheapest.orderUrl).toMatch(/blinkit\.com\/s\/|zeptonow\.com\/search|instamart\/search/);
+    expect(comparison.savingsVsHighest).toBeGreaterThanOrEqual(0);
+  });
+
+  test('Quick-commerce comparison is deterministic for the same basket', () => {
+    expect(compareQuickCommercePrices(['Milk'])).toEqual(compareQuickCommercePrices(['Milk']));
   });
 });
 

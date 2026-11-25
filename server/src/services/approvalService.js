@@ -24,7 +24,8 @@ const RideRequest = require('../models/RideRequest');
 const ServiceBooking = require('../models/ServiceBooking');
 const AuditLog = require('../models/AuditLog');
 const { foodProviders, rideProviders, homeServiceProviders } = require('./integrationAdapters');
-const { quickCommerceHandoffs, medicineHandoffs } = require('./handoffLinks');
+const { medicineHandoffs } = require('./handoffLinks');
+const { compareQuickCommercePrices } = require('./quickCommercePricing');
 const whatsappService = require('./whatsappService');
 const deliveryService = require('./deliveryService');
 
@@ -39,6 +40,25 @@ const TYPE_LABELS = {
   grocery: 'Daily items',
   medicine: 'Medicines',
 };
+
+const DEFAULT_AUTO_APPROVE = {
+  food: false,
+  ride: false,
+  home_service: false,
+  grocery: true,
+  medicine: false,
+};
+
+/**
+ * Legacy links predate `autoApprove`; daily items still default to ON so a
+ * routine grocery request never waits for a child.
+ */
+function isAutoApproveEnabled(link, type) {
+  if (link?.permissions && link.permissions.manageBookings === false) return false;
+  const value = link?.autoApprove?.[type];
+  if (value === undefined || value === null) return DEFAULT_AUTO_APPROVE[type] === true;
+  return Boolean(value);
+}
 
 function httpError(statusCode, message, userMessage) {
   const err = new Error(message);
@@ -261,6 +281,63 @@ function buildHandoffApprovedMessage(approval, links) {
     .join('\n');
 }
 
+function buildGroceryPriceMessage(approval, comparison) {
+  const lang = approval.language || 'en';
+  const cheapest = comparison.cheapest;
+  const optionsLine = comparison.options
+    .map((option) => `${option.providerName}: ${formatRupees(option.total)}`)
+    .join(' · ');
+  const otherLinks = comparison.options
+    .filter((option) => option.providerId !== cheapest.providerId)
+    .map((option) => `${option.providerName}: ${option.orderUrl}`)
+    .join('\n');
+
+  return [
+    approval.autoApproved
+      ? pick(
+          lang,
+          '✅ Daily items approved automatically',
+          '✅ Daily items auto-approve ho gaye',
+          '✅ Daily items auto-approve ho gaye!'
+        )
+      : pick(
+          lang,
+          '✅ Your family approved the daily items request.',
+          '✅ Parivaar ne daily items request approve kar di.',
+          '✅ Family ne daily items approve kar diye.'
+        ),
+    '',
+    pick(lang, `Items: ${comparison.items.join(', ')}`, `Items: ${comparison.items.join(', ')}`, `Items: ${comparison.items.join(', ')}`),
+    pick(
+      lang,
+      `Best price: ${cheapest.providerName} — ${formatRupees(cheapest.total)} (incl. delivery)`,
+      `Sabse kam price: ${cheapest.providerName} — ${formatRupees(cheapest.total)} (delivery ke saath)`,
+      `Best price: ${cheapest.providerName} — ${formatRupees(cheapest.total)} (delivery included)`
+    ),
+    pick(lang, `Compared: ${optionsLine}`, `Comparison: ${optionsLine}`, `Compare: ${optionsLine}`),
+    '',
+    pick(
+      lang,
+      `Order from the cheapest app (${cheapest.providerName}):`,
+      `Sabse sasta app (${cheapest.providerName}) yahan se order karein:`,
+      `Sabse saste app (${cheapest.providerName}) se order karo:`
+    ),
+    cheapest.orderUrl,
+    '',
+    pick(lang, 'Other options:', 'Doosre options:', 'Doosre options:'),
+    otherLinks,
+    '',
+    pick(
+      lang,
+      'Prices are demo estimates — the final bill is shown in the provider app at checkout.',
+      'Prices demo estimate hain — final bill provider app par checkout par dikhega.',
+      'Prices demo estimate hain — final bill provider app par dikhega.'
+    ),
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
 function buildDeclinedMessage(approval, responder) {
   const lang = approval.language || 'en';
   return pick(
@@ -304,12 +381,15 @@ async function createApproval({
 
   const lang = session?.language || parentUser.preferredLanguage || 'en';
   const links = await FamilyLink.find({ parent: parentUser._id, status: 'active' })
-    .populate('child', 'name phone preferredLanguage');
+    .populate('child', 'name phone preferredLanguage role');
 
   if (!links.length) {
     await safeSend(parentUser.phone, buildNoFamilyMessage(lang));
     return { approval: null, notifiedChildren: 0 };
   }
+
+  const autoLink = links.find((link) => link.child && isAutoApproveEnabled(link, type));
+  const autoChild = autoLink?.child || null;
 
   const code = await makeUniqueCode();
   const approval = await ApprovalRequest.create({
@@ -329,6 +409,53 @@ async function createApproval({
 
   const amountText =
     amount === null || amount === undefined ? 'Not specified' : formatRupees(amount);
+
+  // Auto-approved categories (daily items by default) skip the wait entirely:
+  // the child has already opted in, so place the order now and tell everyone.
+  if (autoChild) {
+    try {
+      const autoResult = await approvePendingApproval({
+        approval,
+        responder: autoChild,
+        auto: true,
+        notifyResponder: false,
+      });
+
+      for (const link of links) {
+        const child = link.child;
+        if (!child) continue;
+        await Notification.create({
+          recipient: child._id,
+          type: 'approval_approved',
+          title: 'Auto-approved — no action needed',
+          body: `${parentUser.name}: ${summary}${amount ? ` — ${formatRupees(amount)}` : ''}`,
+          data: {
+            approvalId: autoResult.approval._id,
+            code: approval.code,
+            approvalType: type,
+            parentId: parentUser._id,
+            parentName: parentUser.name,
+            autoApproved: true,
+            autoApprovedBy: autoChild._id,
+          },
+          channels: { inApp: true, whatsapp: false },
+        });
+      }
+
+      return { approval: autoResult.approval, notifiedChildren: links.length, autoApproved: true };
+    } catch (err) {
+      console.error('[Approval] Auto-approval failed:', err.message);
+      const latest = await ApprovalRequest.findById(approval._id).populate(
+        'parent',
+        'name phone preferredLanguage'
+      );
+      if (!latest || latest.status !== 'pending') {
+        return { approval: latest || approval, notifiedChildren: links.length, autoApproved: false };
+      }
+      // Fulfilment failed before the request left "pending" — fall through so a
+      // child can still see it and help manually.
+    }
+  }
 
   let notifiedChildren = 0;
   for (const link of links) {
@@ -505,17 +632,26 @@ async function fulfillApproval(approval, responder) {
   }
 
   if (approval.type === 'grocery') {
-    const query = (details.items || []).slice(0, 3).join(' ') || 'grocery';
-    const links = quickCommerceHandoffs(query);
+    const comparison = compareQuickCommercePrices(details.items || []);
+    const cheapest = comparison.cheapest;
+    const ref = `${cheapest.providerId.toUpperCase()}-COMPARE-${crypto
+      .randomBytes(3)
+      .toString('hex')
+      .toUpperCase()}`;
+
     return {
-      resultType: null,
+      resultType: 'QuickCommerceHandoff',
       resultId: null,
-      resultRef: null,
+      resultRef: ref,
+      isDemo: true,
+      priceComparison: comparison,
       partner: null,
       otp: null,
-      parentMessage: buildHandoffApprovedMessage(approval, links),
-      childMessage: `Approved — quick-commerce links have been sent to ${approval.parent?.name || 'your parent'}.`,
-      notificationTitle: 'Daily items request approved',
+      parentMessage: buildGroceryPriceMessage(approval, comparison),
+      childMessage: `Approved — compared Blinkit, Zepto and Swiggy Instamart. Cheapest: ${cheapest.providerName} (${formatRupees(cheapest.total)}). The order link has been sent to ${approval.parent?.name || 'your parent'}.`,
+      notificationTitle: approval.autoApproved
+        ? 'Daily items auto-approved — cheapest option picked'
+        : 'Daily items approved — cheapest option picked',
     };
   }
 
@@ -534,9 +670,35 @@ async function fulfillApproval(approval, responder) {
   };
 }
 
-async function notifyAfterDecision(approval, responder, result, action, reason) {
+/**
+ * Keeps the in-app Approve/Decline buttons honest: once a request is handled
+ * (or expired) every matching approval_request notification is marked read
+ * and tagged with the outcome. Failures here must never block a decision.
+ */
+async function markApprovalRequestNotificationsHandled(approvalId, outcome) {
+  try {
+    await Notification.updateMany(
+      { type: 'approval_request', 'data.approvalId': approvalId },
+      {
+        $set: {
+          isRead: true,
+          'data.handled': true,
+          'data.handledAction': outcome,
+        },
+      }
+    );
+  } catch (err) {
+    console.error('[Approval] Could not update approval notifications:', err.message);
+  }
+}
+
+async function notifyAfterDecision(approval, responder, result, action, reason, options = {}) {
   const parent = approval.parent;
   const parentId = parent?._id || approval.parent;
+
+  // The in-app Approve/Decline buttons live inside the notification itself, so
+  // once one child has decided, the same buttons must disappear for everyone.
+  await markApprovalRequestNotificationsHandled(approval._id, action);
 
   if (action === 'approve') {
     await Notification.create({
@@ -549,6 +711,7 @@ async function notifyAfterDecision(approval, responder, result, action, reason) 
         resultType: result.resultType,
         resultId: result.resultId,
         resultRef: result.resultRef,
+        autoApproved: Boolean(options.auto),
       },
     });
   } else {
@@ -570,7 +733,7 @@ async function notifyAfterDecision(approval, responder, result, action, reason) 
     );
   }
 
-  if (responder?.phone) {
+  if (responder?.phone && options.notifyResponder !== false) {
     await safeSend(
       responder.phone,
       action === 'approve'
@@ -582,10 +745,17 @@ async function notifyAfterDecision(approval, responder, result, action, reason) 
   await AuditLog.create({
     actor: responder._id,
     actorRole: responder.role,
-    action: action === 'approve' ? 'approval.approved' : 'approval.declined',
+    action: action === 'approve'
+      ? (options.auto ? 'approval.auto_approved' : 'approval.approved')
+      : 'approval.declined',
     resource: 'ApprovalRequest',
     resourceId: approval._id,
-    details: { type: approval.type, summary: approval.summary, resultRef: result?.resultRef || null },
+    details: {
+      type: approval.type,
+      summary: approval.summary,
+      resultRef: result?.resultRef || null,
+      autoApproved: Boolean(options.auto),
+    },
   });
 }
 
@@ -666,11 +836,27 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
     return { approval: claimed, childMessage: 'Declined. Your parent has been informed.' };
   }
 
+  return approvePendingApproval({ approval, responder });
+}
+
+/**
+ * Shared approve path for a child's tap and for per-category auto-approval.
+ * Atomically claims the request, places the order, issues the delivery
+ * handoff (when applicable) and notifies the family.
+ */
+async function approvePendingApproval({ approval, responder, auto = false, notifyResponder = true }) {
   // Atomically claim the request so two children (or two button taps) cannot
   // place the same order twice.
   const claimed = await ApprovalRequest.findOneAndUpdate(
     { _id: approval._id, status: 'pending' },
-    { $set: { status: 'processing', respondedBy: responder._id, respondedAt: new Date() } },
+    {
+      $set: {
+        status: 'processing',
+        respondedBy: responder._id,
+        respondedAt: new Date(),
+        autoApproved: Boolean(auto),
+      },
+    },
     { new: true }
   ).populate('parent', 'name phone preferredLanguage');
 
@@ -682,6 +868,7 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
   } catch (err) {
     claimed.status = 'failed';
     await claimed.save();
+    await markApprovalRequestNotificationsHandled(claimed._id, 'failed');
     await safeSend(
       claimed.parent?.phone,
       'We could not place this order automatically. Your family has been informed and will help you shortly.'
@@ -701,6 +888,7 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
   claimed.resultId = result.resultId;
   claimed.resultRef = result.resultRef;
   claimed.deliveryPartner = result.partner || undefined;
+  claimed.priceComparison = result.priceComparison || undefined;
   if (result.otp) {
     claimed.deliveryOtpHash = hashOtp(result.otp);
     claimed.deliveryOtpExpiresAt = new Date(Date.now() + OTP_TTL_HOURS * 60 * 60 * 1000);
@@ -726,7 +914,10 @@ async function respondToApproval({ approvalId, code, action, responder, reason }
   }
 
   try {
-    await notifyAfterDecision(claimed, responder, result, 'approve');
+    await notifyAfterDecision(claimed, responder, result, 'approve', undefined, {
+      auto,
+      notifyResponder,
+    });
   } catch (err) {
     // Notifications are best effort; the order itself is already placed.
     console.error('[Approval] Post-approval notification failed:', err.message);
@@ -747,6 +938,8 @@ async function expireOne(approval) {
   ).populate('parent', 'name phone preferredLanguage');
 
   if (!expired) return null;
+
+  await markApprovalRequestNotificationsHandled(expired._id, 'expired');
 
   await Notification.create({
     recipient: expired.parent?._id || expired.parent,
@@ -823,6 +1016,8 @@ async function getApproval(user, id) {
 module.exports = {
   APPROVAL_TTL_MINUTES,
   TYPE_LABELS,
+  DEFAULT_AUTO_APPROVE,
+  isAutoApproveEnabled,
   createApproval,
   respondToApproval,
   expireStaleApprovals,

@@ -1,15 +1,33 @@
 const crypto = require('crypto');
+const mongoose = require('mongoose');
 const { v4: uuidv4 } = require('uuid');
 const FamilyLink = require('../models/FamilyLink');
 const User = require('../models/User');
 const Notification = require('../models/Notification');
 const OtpVerification = require('../models/OtpVerification');
+const AuditLog = require('../models/AuditLog');
 const whatsappService = require('../services/whatsappService');
 
 const OTP_TTL_MS = 10 * 60 * 1000;
 const PHONE_REGEX = /^\+?[1-9]\d{6,14}$/;
+const AUTO_APPROVE_TYPES = ['food', 'ride', 'home_service', 'grocery', 'medicine'];
+
+const DEFAULT_AUTO_APPROVE = {
+  food: false,
+  ride: false,
+  home_service: false,
+  grocery: true,
+  medicine: false,
+};
 
 const hashOtp = (otp) => crypto.createHash('sha256').update(String(otp)).digest('hex');
+
+/** Legacy links created before auto-approve existed still get sane defaults. */
+function withAutoApproveDefaults(link) {
+  const obj = link.toObject ? link.toObject() : { ...link };
+  obj.autoApprove = { ...DEFAULT_AUTO_APPROVE, ...(obj.autoApprove || {}) };
+  return obj;
+}
 
 exports.getMyFamily = async (req, res, next) => {
   try {
@@ -23,7 +41,7 @@ exports.getMyFamily = async (req, res, next) => {
       links = await FamilyLink.find({ child: userId }).populate('parent', 'name email phone');
     }
 
-    res.json({ success: true, data: { links } });
+    res.json({ success: true, data: { links: links.map(withAutoApproveDefaults) } });
   } catch (err) {
     next(err);
   }
@@ -125,6 +143,63 @@ exports.updateConsent = async (req, res, next) => {
     await link.save();
 
     res.json({ success: true, message: 'Consent updated.', data: { link } });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * Child-controlled auto-approval. Only the linked child can change their own
+ * setting; parents cannot opt their child into spending approvals.
+ */
+exports.updateAutoApprove = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'child') {
+      return res.status(403).json({ success: false, message: 'Only a linked child can change auto-approval.' });
+    }
+
+    const { type, enabled } = req.body;
+    if (!AUTO_APPROVE_TYPES.includes(type)) {
+      return res.status(400).json({
+        success: false,
+        message: `type must be one of: ${AUTO_APPROVE_TYPES.join(', ')}`,
+      });
+    }
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ success: false, message: 'enabled must be true or false.' });
+    }
+    if (!mongoose.isValidObjectId(req.params.linkId)) {
+      return res.status(400).json({ success: false, message: 'Invalid family link id.' });
+    }
+
+    const link = await FamilyLink.findOne({
+      _id: req.params.linkId,
+      child: req.user._id,
+      status: 'active',
+    });
+    if (!link) {
+      return res.status(404).json({ success: false, message: 'Active family link not found.' });
+    }
+
+    link.autoApprove = { ...DEFAULT_AUTO_APPROVE, ...(link.autoApprove?.toObject?.() || link.autoApprove || {}) };
+    link.autoApprove[type] = enabled;
+    link.markModified('autoApprove');
+    await link.save();
+
+    await AuditLog.create({
+      actor: req.user._id,
+      actorRole: req.user.role,
+      action: 'family.auto_approve_updated',
+      resource: 'FamilyLink',
+      resourceId: link._id,
+      details: { type, enabled, parent: link.parent },
+    });
+
+    res.json({
+      success: true,
+      message: `Auto-approve ${enabled ? 'enabled' : 'disabled'} for ${type.replace(/_/g, ' ')}.`,
+      data: { link: withAutoApproveDefaults(link) },
+    });
   } catch (err) {
     next(err);
   }

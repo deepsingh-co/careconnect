@@ -34,6 +34,21 @@ const familyLinkSchema = new mongoose.Schema(
       manageBookings: { type: Boolean, default: true },
       receiveAlerts: { type: Boolean, default: true },
     },
+    /**
+     * Child-controlled per-category auto-approval.
+     *
+     * Daily items (grocery) default to ON so a parent's routine "doodh aur
+     * poha" request is never blocked waiting for a child. Every other
+     * category is opt-in. Turning a category off restores the normal
+     * WhatsApp / in-app Approve-Decline flow for that category.
+     */
+    autoApprove: {
+      food: { type: Boolean, default: false },
+      ride: { type: Boolean, default: false },
+      home_service: { type: Boolean, default: false },
+      grocery: { type: Boolean, default: true },
+      medicine: { type: Boolean, default: false },
+    },
   },
   { timestamps: true }
 );

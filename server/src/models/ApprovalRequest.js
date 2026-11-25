@@ -65,6 +65,14 @@ const approvalRequestSchema = new mongoose.Schema(
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
     },
+    /** True when the child's per-category auto-approve setting approved this. */
+    autoApproved: { type: Boolean, default: false },
+    /**
+     * Grocery price comparison snapshot (Blinkit / Zepto / Instamart demo
+     * estimates). Kept on the request so the dashboard can show the chosen
+     * cheapest option after the approval.
+     */
+    priceComparison: mongoose.Schema.Types.Mixed,
     declineReason: { type: String, maxlength: 300 },
     resultType: String,
     resultId: mongoose.Schema.Types.ObjectId,

@@ -11,5 +11,6 @@ router.post('/invitations/accept', familyController.acceptInvitation);
 router.post('/otp/request', familyController.requestParentOtp);
 router.post('/otp/verify', familyController.verifyParentOtp);
 router.patch('/consent', familyController.updateConsent);
+router.patch('/links/:linkId/auto-approve', familyController.updateAutoApprove);
 
 module.exports = router;
