@@ -2,6 +2,23 @@
 
 A full-stack web application that helps elderly parents living independently while their children study or work in other cities. Parents use WhatsApp. Children use a dashboard. Workers use a provider portal. All three share one secure backend.
 
+## Features
+
+**Parents (WhatsApp-first)**
+- Ask in Hinglish, Hindi or English: food, rides, home services, daily items and medicines.
+- Family approval before spending, with delivery partner details and a 4-digit OTP on WhatsApp.
+- Daily items can be auto-approved and are compared across Blinkit, Zepto and Instamart so the cheapest option is picked automatically.
+
+**Children (dashboard)**
+- Approve or decline requests from `/approvals`, or directly from the buttons on an in-app notification.
+- Per-parent, per-category auto-approve toggles (daily items ON by default, everything else opt-in).
+- Grocery price-comparison card showing each provider's total, ETA and the cheapest order link.
+- Medicine reminders, wellness check-ins, emergency alerts, bookings and the family audit trail.
+
+**Providers and admins**
+- Provider portal for job accept/reject and status updates.
+- Admin console for users, provider verification, integration health, audit logs and the WhatsApp QR pairing console.
+
 ## Architecture
 
 ```
@@ -193,9 +210,18 @@ falls back to text commands automatically.
 1. Open **Admin → WhatsApp** and confirm the provider is `baileys`.
 2. Scan the QR with a **dedicated** number (never a personal number).
 3. Send a test message from the page.
-4. From the parent phone send `khana chahiye` / `ride chahiye`.
-5. Approve as the linked child on WhatsApp; show the delivery OTP and the
-   rider handoff page.
+4. From the parent phone send `dudh aur poha chahiye` — daily items are
+   auto-approved by default, so no child tap is needed. The parent receives the
+   Blinkit / Zepto / Instamart comparison and the cheapest order link.
+5. Open `/approvals` as the demo child and show the per-category toggles plus the
+   price-comparison card on the auto-approved request.
+6. From the parent phone send `khana chahiye` — the child gets a WhatsApp prompt
+   and an in-app notification. Approve it from either place; the parent receives
+   the delivery partner, ETA, delivery OTP and the rider handoff link.
+7. Open the handoff link, enter the OTP and show the delivery being verified.
+
+Prices shown for quick-commerce are clearly labelled demo estimates; the
+provider app shows the final bill at checkout.
 
 ## Security Features
 
@@ -254,8 +280,18 @@ CareConnect **does**:
 ## Testing
 
 ```bash
+# Backend API suite (Jest + test MongoDB)
 cd server && npm test
+
+# Frontend production build and lint
+cd client && npm run build
+cd client && npm run lint
 ```
+
+The backend suite covers authentication and role isolation, family approvals and
+auto-approval, quick-commerce price comparison, delivery OTP verification,
+WhatsApp webhook/simulator flows and the Baileys channel. The client build must
+pass; lint currently reports only pre-existing warnings.
 
 ## License
 
